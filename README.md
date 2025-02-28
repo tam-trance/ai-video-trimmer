@@ -1,3 +1,5 @@
+Video link: https://www.youtube.com/watch?v=iQ3qyEet3HM
+
 # Video Editor
 
 This application processes videos by extracting audio, detecting speech segments, transcribing them, and creating a filtered version based on LLM suggestions.
@@ -5,6 +7,7 @@ This application processes videos by extracting audio, detecting speech segments
 ## Setup
 
 1. Create and activate a virtual environment:
+
 ```bash
 # Windows
 python -m venv venv
@@ -52,29 +55,38 @@ video-editor/
 ## Usage
 
 ### Full Video Processing
+
 1. Place your input videos in the `raw/` directory
 2. Run the script:
+
 ```bash
 python main.py
 ```
 
 ### Generate Suggestions Only
+
 If you already have transcription files and just want to generate new suggestions and captions:
+
 ```bash
 python generate_suggestion.py
 ```
+
 This script will:
+
 1. Find the latest `*_transcription.json` file in the `jsons/` directory
 2. Generate a new suggestion using the LLM
 3. Create both a suggestion JSON file and an SRT subtitle file
 4. Note: This script does not generate the final video, it only produces suggestions and captions
 
 ## Output Structure
+
 The script creates several directories:
+
 - `audio/`: Temporary audio files
 - `jsons/`: JSON files containing raw segments, transcriptions, and suggestions
 - `edited/`: Final edited videos
 - `subtitles/`: SRT subtitle files
 
 ## Community Support
+
 Need help or want to join our community? Visit [The AI Forge](https://www.skool.com/the-ai-forge/about) for support and discussions.
