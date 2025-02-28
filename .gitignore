@@ -1,0 +1,31 @@
+./__pycache__/*
+*.pyc
+*.pyo
+*.pyd
+*.pyw
+*.pyz
+
+*.log
+*.log.*
+*.log.*.*
+*.log.*.*.*
+*.log.*.*.*.*
+*.log.*.*.*.*.*
+
+keep some folders like /audio
+
+# Unignore the specific folder and its contents
+!audio/
+!edited/
+!jsons/
+!raw/
+
+.env
+
+*.mp4
+*.mp3
+*.wav
+*.avi
+*.mkv
+*.mov
+*.flv
