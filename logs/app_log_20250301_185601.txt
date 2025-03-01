@@ -1,0 +1,23 @@
+2025-03-01 18:56:01,593 - root - INFO - ==================================================
+2025-03-01 18:56:01,593 - root - INFO - Application starting. Python version: 3.12.2 (tags/v3.12.2:6abddd9, Feb  6 2024, 21:26:36) [MSC v.1937 64 bit (AMD64)]
+2025-03-01 18:56:01,594 - root - INFO - Working directory: C:\Users\Leonardo\Documents\video-editor-script
+2025-03-01 18:56:01,605 - root - INFO - Application directory: C:\Users\Leonardo\Documents\video-editor-script
+2025-03-01 18:56:01,605 - root - INFO - Script location: C:\Users\Leonardo\AppData\Local\Temp\_MEI222602\app.py
+2025-03-01 18:56:01,606 - root - INFO - Ensured output directory exists: C:\Users\Leonardo\Documents\video-editor-script\audio
+2025-03-01 18:56:01,607 - root - INFO - Ensured output directory exists: C:\Users\Leonardo\Documents\video-editor-script\jsons
+2025-03-01 18:56:01,607 - root - INFO - Ensured output directory exists: C:\Users\Leonardo\Documents\video-editor-script\edited
+2025-03-01 18:56:01,608 - root - INFO - Ensured output directory exists: C:\Users\Leonardo\Documents\video-editor-script\subtitles
+2025-03-01 18:56:01,634 - root - INFO - Successfully imported webrtcvad
+2025-03-01 18:56:01,639 - root - INFO - Loaded .env file from C:\Users\Leonardo\Documents\video-editor-script\.env
+2025-03-01 18:56:01,639 - root - INFO - Environment variables: {}
+2025-03-01 18:56:01,652 - root - INFO - Successfully imported pydub
+2025-03-01 18:56:10,218 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
+2025-03-01 18:56:10,220 - httpx - DEBUG - load_verify_locations cafile='C:\\Users\\Leonardo\\AppData\\Local\\Temp\\_MEI222602\\certifi\\cacert.pem'
+2025-03-01 18:56:12,364 - root - INFO - Successfully imported all required modules
+2025-03-01 18:56:12,365 - root - INFO - Application entry point
+2025-03-01 18:56:12,365 - root - INFO - Starting main function
+2025-03-01 18:56:13,519 - root - INFO - Application initialized successfully
+2025-03-01 18:56:13,525 - root - INFO - Modern UI initialized
+2025-03-01 18:56:13,525 - root - INFO - Entering Tkinter main loop
+2025-03-01 18:56:21,792 - root - INFO - Browsing for input video file...
+2025-03-01 18:56:24,278 - root - INFO - Selected video file: C:/Users/Leonardo/Documents/video-editor-script/raw/2025-02-28_21-18-10.mp4

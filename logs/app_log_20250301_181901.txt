@@ -1,0 +1,34 @@
+2025-03-01 18:19:01,849 - root - INFO - ==================================================
+2025-03-01 18:19:01,852 - root - INFO - Application starting. Python version: 3.12.2 (tags/v3.12.2:6abddd9, Feb  6 2024, 21:26:36) [MSC v.1937 64 bit (AMD64)]
+2025-03-01 18:19:01,854 - root - INFO - Working directory: C:\Users\Leonardo\Documents\video-editor-script
+2025-03-01 18:19:01,871 - root - INFO - Application directory: C:\Users\Leonardo\Documents\video-editor-script
+2025-03-01 18:19:01,888 - root - INFO - Script location: C:\Users\Leonardo\Documents\video-editor-script\app.py
+2025-03-01 18:19:01,907 - root - INFO - Ensured output directory exists: C:\Users\Leonardo\Documents\video-editor-script\audio
+2025-03-01 18:19:01,908 - root - INFO - Ensured output directory exists: C:\Users\Leonardo\Documents\video-editor-script\jsons
+2025-03-01 18:19:01,910 - root - INFO - Ensured output directory exists: C:\Users\Leonardo\Documents\video-editor-script\edited
+2025-03-01 18:19:01,911 - root - INFO - Ensured output directory exists: C:\Users\Leonardo\Documents\video-editor-script\subtitles
+2025-03-01 18:19:02,541 - root - INFO - Successfully imported webrtcvad
+2025-03-01 18:19:02,567 - root - INFO - Loaded .env file from C:\Users\Leonardo\Documents\video-editor-script\.env
+2025-03-01 18:19:02,576 - root - INFO - Environment variables: {}
+2025-03-01 18:19:02,653 - root - INFO - Successfully imported pydub
+2025-03-01 18:19:13,754 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
+2025-03-01 18:19:13,759 - httpx - DEBUG - load_verify_locations cafile='C:\\Users\\Leonardo\\Documents\\video-editor-script\\myenv\\Lib\\site-packages\\certifi\\cacert.pem'
+2025-03-01 18:19:14,371 - root - INFO - Successfully imported all required modules
+2025-03-01 18:19:14,373 - root - INFO - Application entry point
+2025-03-01 18:19:14,375 - root - INFO - Starting main function
+2025-03-01 18:19:14,621 - root - INFO - Application initialized successfully
+2025-03-01 18:19:14,677 - root - INFO - Modern UI initialized
+2025-03-01 18:19:14,731 - root - INFO - Entering Tkinter main loop
+2025-03-01 18:19:25,819 - root - INFO - Browsing for input video file...
+2025-03-01 18:19:45,214 - root - INFO - Selected video file: C:/Users/Leonardo/Documents/video-editor-script/raw/2025-02-28_21-18-10.mp4
+2025-03-01 18:20:12,047 - root - INFO - Applied parameters: frame_duration=30ms, padding_duration=300ms, aggressiveness=0, post_padding=0.2s
+2025-03-01 18:20:18,891 - root - INFO - Extracting audio...
+2025-03-01 18:20:19,650 - root - INFO - Loading audio file...
+2025-03-01 18:20:19,655 - root - INFO - Detecting speech segments...
+2025-03-01 18:20:19,685 - root - INFO - Saved raw segments to C:\Users\Leonardo\Documents\video-editor-script\jsons\2025-02-28_21-18-10_raw_segments.json
+2025-03-01 18:20:19,690 - root - INFO - Successfully detected segments: 2025-02-28_21-18-10_raw_segments.json
+2025-03-01 18:20:33,347 - root - INFO - Loading suggestions...
+2025-03-01 18:20:33,351 - root - INFO - Generating SRT file...
+2025-03-01 18:20:33,357 - root - INFO - Saved SRT file to C:\Users\Leonardo\Documents\video-editor-script\subtitles\2025-02-28_21-18-10.srt
+2025-03-01 18:20:33,361 - root - INFO - Successfully generated SRT: 2025-02-28_21-18-10.srt
+2025-03-01 18:20:50,722 - root - INFO - Opened output folder: C:\Users\Leonardo\Documents\video-editor-script\edited
