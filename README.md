@@ -1,92 +1,79 @@
 Video link: https://www.youtube.com/watch?v=iQ3qyEet3HM
 
-# Video Editor
+# Video Processor
 
-This application processes videos by extracting audio, detecting speech segments, transcribing them, and creating a filtered version based on LLM suggestions.
+A user-friendly application for processing videos, generating transcripts, and creating edited versions.
 
-## Setup
+## For Non-Technical Users
 
-1. Create and activate a virtual environment:
+### Option 1: Using the Pre-Built Executable
 
-```bash
-# Windows
-python -m venv venv
-.\venv\Scripts\activate
+1. Download the latest release from the project page
+2. Extract the zip file to a location on your computer
+3. Edit the `.env` file to add your API keys (use Notepad or any text editor)
+4. Place your videos in the `raw` folder
+5. Run `VideoProcessor.exe` for the graphical interface or `VideoProcessor-Simple.exe` for the console version
+6. Follow the on-screen instructions
 
-# Install dependencies
+### Option 2: Building the Executable Yourself
+
+1. Make sure Python 3.8 or higher is installed on your system
+2. Download or clone this repository
+3. Open a command prompt in the project folder
+4. Run `python build_executable.py`
+5. Once built, you'll find the executables in the `VideoProcessor-Dist` folder
+6. Follow the same usage instructions as in Option 1
+
+## For Developers
+
+### Project Structure
+
+- `app.py` - Main GUI application (Tkinter-based)
+- `simple_app.py` - Console version of the application
+- `main.py` - Core processing logic
+- `src/` - Source code modules:
+  - `audio/` - Audio processing utilities
+  - `llm/` - Language model integration
+  - `transcription/` - Whisper transcription functionality
+  - `utils/` - Helper functions for JSON and SRT handling
+  - `video/` - Video editing functionality
+- `build_executable.py` - Script to build the executable
+- `create_resources.py` - Script to create splash screen and icon
+
+### Requirements
+
+- Python 3.8 or higher
+- Dependencies listed in `requirements.txt`
+
+### Installation for Development
+
+```
 pip install -r requirements.txt
 ```
 
-2. Set up your environment variables:
-   - Copy `.env.example` to `.env`
-   - Fill in your API keys in the `.env` file:
-     ```
-     OPENAI_API_KEY=sk-your-openai-key-here
-     GOOGLE_API_KEY=AIzaSy-your-google-key-here
-     ```
-   - Need help? Join our community at [The AI Forge](https://www.skool.com/the-ai-forge/about)
+### Environment Variables
 
-## Project Structure
+Create a `.env` file in the project root with the following variables:
 
 ```
-video-editor/
-├── src/
-│   ├── audio/
-│   │   ├── __init__.py
-│   │   └── processing.py      # Audio extraction and VAD
-│   ├── transcription/
-│   │   ├── __init__.py
-│   │   └── whisper.py        # Whisper-based transcription
-│   ├── llm/
-│   │   ├── __init__.py
-│   │   └── suggestion.py     # LLM-based filtering
-│   ├── video/
-│   │   ├── __init__.py
-│   │   └── editor.py         # Video manipulation
-│   └── utils/
-│       ├── __init__.py
-│       └── json_utils.py     # JSON utilities
-├── main.py                   # Main script for full video processing
-├── generate_suggestion.py    # Script for generating suggestions from existing transcriptions
-├── requirements.txt          # Dependencies
-└── README.md                # This file
+OPENAI_API_KEY=your_openai_api_key_here
 ```
 
-## Usage
+## Troubleshooting
 
-### Full Video Processing
+### Common Issues with the Executable
 
-1. Place your input videos in the `raw/` directory
-2. Run the script:
+1. **Executable doesn't start**: Check the logs in the `logs` folder for details
+2. **Missing DLL error**: Install the Visual C++ Redistributable for Visual Studio 2015-2022
+3. **OpenAI API error**: Make sure you've added your API key to the `.env` file
+4. **No videos processed**: Ensure your videos are in the `raw` folder and have a supported format (.mp4, .mov, .avi, .mkv)
 
-```bash
-python main.py
-```
+### When Building from Source
 
-### Generate Suggestions Only
+1. **PyInstaller not found**: Run `pip install pyinstaller` to install it
+2. **Package not found errors**: Ensure all dependencies are installed with `pip install -r requirements.txt`
+3. **Large executable size**: This is normal due to AI libraries included in the package
 
-If you already have transcription files and just want to generate new suggestions and captions:
+## License
 
-```bash
-python generate_suggestion.py
-```
-
-This script will:
-
-1. Find the latest `*_transcription.json` file in the `jsons/` directory
-2. Generate a new suggestion using the LLM
-3. Create both a suggestion JSON file and an SRT subtitle file
-4. Note: This script does not generate the final video, it only produces suggestions and captions
-
-## Output Structure
-
-The script creates several directories:
-
-- `audio/`: Temporary audio files
-- `jsons/`: JSON files containing raw segments, transcriptions, and suggestions
-- `edited/`: Final edited videos
-- `subtitles/`: SRT subtitle files
-
-## Community Support
-
-Need help or want to join our community? Visit [The AI Forge](https://www.skool.com/the-ai-forge/about) for support and discussions.
+[MIT License](LICENSE)

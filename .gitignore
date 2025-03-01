@@ -29,3 +29,10 @@ keep some folders like /audio
 *.mkv
 *.mov
 *.flv
+
+*.srt
+*.json
+*.exe
+
+/myenv/*
+/myenv
