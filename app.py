@@ -1,5 +1,6 @@
 import logging
 import os
+import subprocess
 import sys
 import threading
 import tkinter as tk
@@ -17,6 +18,10 @@ if getattr(sys, "frozen", False):
 else:
     # We're running in a normal Python environment
     APP_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Add APP_DIR to sys.path to ensure imports work properly
+if APP_DIR not in sys.path:
+    sys.path.insert(0, APP_DIR)
 
 # Set up logging
 log_dir = os.path.join(APP_DIR, "logs")
@@ -113,113 +118,92 @@ try:
 except Exception as e:
     logging.error(f"Error loading .env file: {e}")
 
-# Import processing functions - implement graceful fallbacks
+# Import required modules directly to avoid dependency issues
 try:
-    # Import directly from main.py in the same directory
-    sys.path.append(APP_DIR)
-    main_module_found = False
+    # Import core dependencies
+    from pydub import AudioSegment
 
-    try:
-        from pydub import AudioSegment
+    logging.info("Successfully imported pydub")
 
-        logging.info("Successfully imported pydub")
-    except ImportError:
-        logging.error("Failed to import pydub")
-        messagebox.showerror(
-            "Import Error",
-            "Failed to import pydub module. Audio processing won't work.",
-        )
-        sys.exit(1)
+    # Import direct functions from source modules
+    # These imports are explicit to ensure we have all required functions
+    from src.audio.processing import detect_segments, extract_audio
+    from src.llm.suggestion import get_llm_suggestion
+    from src.transcription.whisper import transcribe_segments
+    from src.utils.json_utils import save_json
+    from src.utils.srt_utils import create_srt_from_json
+    from src.video.editor import create_final_video
 
+    logging.info(
+        "Successfully imported all required functions directly from source modules"
+    )
+
+    # Try importing process_video from main for completeness
     try:
         from main import process_video
 
-        main_module_found = True
         logging.info("Successfully imported process_video from main")
     except ImportError:
-        logging.warning(
-            "Could not import process_video directly, will use local implementation"
-        )
+        logging.warning("Could not import process_video from main (this is optional)")
 
-    if not main_module_found:
-        try:
-            # Try to import individual functions if the main module import failed
-            from main import (
-                create_final_video,
-                create_srt_from_json,
-                detect_segments,
-                extract_audio,
-                get_llm_suggestion,
-                save_json,
-                transcribe_segments,
-            )
-
-            logging.info("Successfully imported individual functions from main")
-        except ImportError as e:
-            logging.error(f"Failed to import required functions: {e}")
-            messagebox.showerror(
-                "Import Error", f"Failed to import required modules: {str(e)}"
-            )
-            sys.exit(1)
-
-except Exception as e:
-    logging.error(f"Error during imports: {e}", exc_info=True)
-    messagebox.showerror("Import Error", f"Failed to set up required modules: {str(e)}")
-    sys.exit(1)
+except ImportError as e:
+    logging.error(f"Failed to import required modules: {e}")
+    messagebox.showerror(
+        "Import Error",
+        f"Failed to import required modules: {str(e)}. The application might not work correctly.",
+    )
 
 
-# Define the processing function locally if not imported from main
-if not main_module_found:
+# Define the processing function locally to ensure it uses the imported functions
+def process_video_local(video_path, generate_srt=True, generate_video=True):
+    """Process a single video file using locally imported functions"""
+    logging.info(f"Processing {video_path} using local implementation")
+    base_name = os.path.splitext(os.path.basename(video_path))[0]
 
-    def process_video(video_path, generate_srt=True, generate_video=True):
-        """Process a single video file"""
-        logging.info(f"Processing {video_path} using local implementation")
-        base_name = os.path.splitext(os.path.basename(video_path))[0]
+    # Step 1: Extract full audio from the video
+    temp_audio_file = os.path.join(APP_DIR, "audio", f"{base_name}_temp_audio.wav")
+    extract_audio(video_path, temp_audio_file)
 
-        # Step 1: Extract full audio from the video
-        temp_audio_file = os.path.join(APP_DIR, "audio", f"{base_name}_temp_audio.wav")
-        extract_audio(video_path, temp_audio_file)
+    # Load the audio as an AudioSegment for processing
+    audio = AudioSegment.from_file(temp_audio_file)
 
-        # Step 2: Load audio and detect segments based on sound levels
-        audio = AudioSegment.from_file(temp_audio_file)
-        raw_segments = detect_segments(audio, chunk_ms=100)
-        raw_segments_file = os.path.join(
-            APP_DIR, "jsons", f"{base_name}_raw_segments.json"
-        )
-        save_json(raw_segments, raw_segments_file)
-        logging.info(f"Saved raw segments JSON to {raw_segments_file}")
+    # Step 2: Detect segments
+    segments = detect_segments(audio, chunk_ms=100)
+    raw_segments_file = os.path.join(APP_DIR, "jsons", f"{base_name}_raw_segments.json")
+    save_json(segments, raw_segments_file)
+    logging.info(f"Saved raw segments JSON to {raw_segments_file}")
 
-        # Step 3: For each segment, transcribe the audio using Whisper
-        raw_transcription = transcribe_segments(audio, raw_segments)
-        raw_transcription_file = os.path.join(
-            APP_DIR, "jsons", f"{base_name}_transcription.json"
-        )
-        save_json(raw_transcription, raw_transcription_file)
-        logging.info(f"Saved raw transcription JSON to {raw_transcription_file}")
+    # Step 3: Transcribe the segments
+    raw_transcription = transcribe_segments(audio, segments)
+    raw_transcription_file = os.path.join(
+        APP_DIR, "jsons", f"{base_name}_transcription.json"
+    )
+    save_json(raw_transcription, raw_transcription_file)
+    logging.info(f"Saved raw transcription JSON to {raw_transcription_file}")
 
-        os.remove(temp_audio_file)
+    os.remove(temp_audio_file)
 
-        # Step 4: Send raw transcription to an LLM for filtering and save suggestion JSON locally
-        suggestion = get_llm_suggestion(raw_transcription)
-        suggestion_file = os.path.join(APP_DIR, "jsons", f"{base_name}_suggestion.json")
-        save_json(suggestion, suggestion_file)
-        logging.info(f"Saved LLM suggestion JSON to {suggestion_file}")
+    # Step 4: Send raw transcription to an LLM for filtering and save suggestion JSON locally
+    suggestion = get_llm_suggestion(raw_transcription)
+    suggestion_file = os.path.join(APP_DIR, "jsons", f"{base_name}_suggestion.json")
+    save_json(suggestion, suggestion_file)
+    logging.info(f"Saved LLM suggestion JSON to {suggestion_file}")
 
-        # Step 5: Create SRT file if requested
-        if generate_srt:
-            srt_content = create_srt_from_json(suggestion)
-            srt_file = os.path.join(APP_DIR, "subtitles", f"{base_name}.srt")
-            with open(srt_file, "w", encoding="utf-8") as f:
-                f.write(srt_content)
-            logging.info(f"Saved SRT file to {srt_file}")
+    # Step 5: Create SRT file if requested
+    if generate_srt:
+        srt_content = create_srt_from_json(suggestion)
+        srt_file = os.path.join(APP_DIR, "subtitles", f"{base_name}.srt")
+        with open(srt_file, "w", encoding="utf-8") as f:
+            f.write(srt_content)
+        logging.info(f"Saved SRT file to {srt_file}")
 
-        # Step 6: Create the final video if requested
-        if generate_video:
-            output_video = os.path.join(APP_DIR, "edited", f"{base_name}_edited.mp4")
-            create_final_video(video_path, suggestion, output_video)
-            logging.info(f"Saved edited video to {output_video}")
+    # Step 6: Create the final video if requested
+    if generate_video:
+        output_video = os.path.join(APP_DIR, "edited", f"{base_name}_edited.mp4")
+        create_final_video(video_path, suggestion, output_video)
+        logging.info(f"Saved edited video to {output_video}")
 
-        return True
+    return True
 
 
 class VideoProcessorApp:
@@ -227,7 +211,7 @@ class VideoProcessorApp:
         logging.info("Initializing VideoProcessorApp")
         self.root = root
         self.root.title("Video Processor")
-        self.root.geometry("600x400")
+        self.root.geometry("600x450")  # Made slightly taller for the buttons
         self.root.resizable(True, True)
 
         # Set application icon if it exists
@@ -247,6 +231,8 @@ class VideoProcessorApp:
         self.generate_srt = tk.BooleanVar(value=True)
         self.generate_video = tk.BooleanVar(value=True)
         self.processing = False
+        self.current_progress = 0
+        self.processing_steps = 6  # Total number of processing steps
 
         # Create the main frame
         main_frame = ttk.Frame(root, padding="20")
@@ -299,22 +285,38 @@ class VideoProcessorApp:
         self.progress_label.grid(row=0, column=0, sticky=tk.W, pady=5)
 
         self.progress_bar = ttk.Progressbar(
-            self.progress_frame, orient=tk.HORIZONTAL, length=100, mode="indeterminate"
+            self.progress_frame, orient=tk.HORIZONTAL, length=100, mode="determinate"
         )
         self.progress_bar.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=5)
 
+        # Buttons frame
+        buttons_frame = ttk.Frame(main_frame)
+        buttons_frame.grid(row=4, column=0, columnspan=3, pady=10)
+        buttons_frame.columnconfigure(0, weight=1)
+        buttons_frame.columnconfigure(1, weight=1)
+
         # Process button
         self.process_btn = ttk.Button(
-            main_frame, text="Process Video", command=self.start_processing
+            buttons_frame, text="Process Video", command=self.start_processing
         )
-        self.process_btn.grid(row=4, column=0, columnspan=3, pady=20)
+        self.process_btn.grid(row=0, column=0, pady=5, padx=10)
+
+        # Open Output Folder button
+        self.open_folder_btn = ttk.Button(
+            buttons_frame, text="Open Output Folder", command=self.open_output_folder
+        )
+        self.open_folder_btn.grid(row=0, column=1, pady=5, padx=10)
 
         # Log entry
         self.log_frame = ttk.LabelFrame(main_frame, text="Log", padding="10")
-        self.log_frame.grid(row=5, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=10)
+        self.log_frame.grid(
+            row=5, column=0, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S), pady=10
+        )
+        self.log_frame.rowconfigure(0, weight=1)
+        self.log_frame.columnconfigure(0, weight=1)
 
         self.log_text = tk.Text(self.log_frame, height=5, wrap=tk.WORD)
-        self.log_text.grid(row=0, column=0, sticky=(tk.W, tk.E))
+        self.log_text.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         self.log_text.insert(tk.END, f"Log file: {log_file}\n")
         self.log_text.config(state=tk.DISABLED)
 
@@ -345,6 +347,38 @@ class VideoProcessorApp:
             self.input_file.set(file_path)
             self.log_message(f"Selected video file: {file_path}")
 
+    def open_output_folder(self):
+        """Open the output folder in file explorer"""
+        try:
+            if self.generate_video.get():
+                folder_path = os.path.join(APP_DIR, "edited")
+            elif self.generate_srt.get():
+                folder_path = os.path.join(APP_DIR, "subtitles")
+            else:
+                folder_path = os.path.join(APP_DIR, "jsons")
+
+            # Ensure the folder exists
+            os.makedirs(folder_path, exist_ok=True)
+
+            # Open the folder using the system's file explorer
+            if sys.platform == "win32":
+                os.startfile(folder_path)
+            elif sys.platform == "darwin":  # macOS
+                subprocess.run(["open", folder_path])
+            else:  # Linux
+                subprocess.run(["xdg-open", folder_path])
+
+            self.log_message(f"Opened output folder: {folder_path}")
+        except Exception as e:
+            self.log_message(f"Error opening output folder: {str(e)}")
+
+    def update_progress(self, step, message):
+        """Update the progress bar and label"""
+        progress_value = int((step / self.processing_steps) * 100)
+        self.root.after(0, lambda: self.progress_bar.config(value=progress_value))
+        self.root.after(0, lambda: self.progress_label.config(text=message))
+        self.log_message(message)
+
     def start_processing(self):
         if not self.input_file.get():
             messagebox.showerror("Error", "Please select a video file")
@@ -362,42 +396,93 @@ class VideoProcessorApp:
         self.processing = True
         self.log_message("Starting video processing...")
         self.progress_label.config(text="Processing video... Please wait")
-        self.progress_bar.start()
+        self.progress_bar.config(value=0)  # Reset progress bar
         self.process_btn.config(state=tk.DISABLED)
 
-        thread = threading.Thread(target=self.process_video)
+        thread = threading.Thread(target=self.run_process_video)
         thread.daemon = True
         thread.start()
 
-    def process_video(self):
+    def run_process_video(self):
+        """Execute the video processing function with progress updates"""
         try:
             video_path = self.input_file.get()
-            self.log_message(f"Processing video: {os.path.basename(video_path)}")
+            base_name = os.path.splitext(os.path.basename(video_path))[0]
+            output_video = os.path.join(APP_DIR, "edited", f"{base_name}_edited.mp4")
 
-            # Process the video using the local function
+            # Use the locally defined functions directly to avoid any import issues
             try:
-                process_video(
-                    video_path,
-                    generate_srt=self.generate_srt.get(),
-                    generate_video=self.generate_video.get(),
+                # Step 1: Extract audio
+                temp_audio_file = os.path.join(
+                    APP_DIR, "audio", f"{base_name}_temp_audio.wav"
                 )
-                self.log_message(f"Finished processing: {os.path.basename(video_path)}")
+                self.update_progress(1, f"Extracting audio to {temp_audio_file}...")
+                extract_audio(video_path, temp_audio_file)
+
+                # Load the audio file as AudioSegment for further processing
+                self.update_progress(1.5, "Loading audio file...")
+                audio = AudioSegment.from_file(temp_audio_file)
+
+                # Step 2: Detect segments with chunk_ms parameter to match main.py exactly
+                self.update_progress(2, "Detecting speech segments...")
+                segments = detect_segments(audio, chunk_ms=100)
+                raw_segments_file = os.path.join(
+                    APP_DIR, "jsons", f"{base_name}_raw_segments.json"
+                )
+                save_json(segments, raw_segments_file)
+
+                # Step 3: Transcribe segments
+                self.update_progress(3, "Transcribing audio segments...")
+                raw_transcription = transcribe_segments(audio, segments)
+                raw_transcription_file = os.path.join(
+                    APP_DIR, "jsons", f"{base_name}_transcription.json"
+                )
+                save_json(raw_transcription, raw_transcription_file)
+
+                # Clean up temp audio file
+                os.remove(temp_audio_file)
+
+                # Step 4: Get LLM suggestions
+                self.update_progress(4, "Processing transcription with LLM...")
+                suggestion = get_llm_suggestion(raw_transcription)
+                suggestion_file = os.path.join(
+                    APP_DIR, "jsons", f"{base_name}_suggestion.json"
+                )
+                save_json(suggestion, suggestion_file)
+
+                # Step 5: Create SRT if requested
+                if self.generate_srt.get():
+                    self.update_progress(5, "Generating SRT subtitles...")
+                    srt_content = create_srt_from_json(suggestion)
+                    srt_file = os.path.join(APP_DIR, "subtitles", f"{base_name}.srt")
+                    with open(srt_file, "w", encoding="utf-8") as f:
+                        f.write(srt_content)
+                else:
+                    self.update_progress(5, "Skipping SRT generation...")
+
+                # Step 6: Create final video if requested
+                if self.generate_video.get():
+                    self.update_progress(6, "Creating edited video...")
+                    create_final_video(video_path, suggestion, output_video)
+                else:
+                    self.update_progress(6, "Skipping video generation...")
+
+                self.update_progress(
+                    self.processing_steps,
+                    f"Finished processing: {os.path.basename(video_path)}",
+                )
 
                 # Show success message with output paths
                 success_message = (
                     f"Successfully processed {os.path.basename(video_path)}!\n\n"
                 )
-                base_name = os.path.splitext(os.path.basename(video_path))[0]
 
                 if self.generate_srt.get():
                     srt_path = os.path.join(APP_DIR, "subtitles", f"{base_name}.srt")
                     success_message += f"SRT file: {srt_path}\n"
 
                 if self.generate_video.get():
-                    video_path = os.path.join(
-                        APP_DIR, "edited", f"{base_name}_edited.mp4"
-                    )
-                    success_message += f"Edited video: {video_path}\n"
+                    success_message += f"Edited video: {output_video}\n"
 
                 self.root.after(
                     0, lambda: messagebox.showinfo("Success", success_message)
@@ -425,7 +510,7 @@ class VideoProcessorApp:
             self.finish_processing(f"Error: {str(e)}")
 
     def finish_processing(self, message):
-        self.progress_bar.stop()
+        self.progress_bar.config(value=100)  # Complete the progress bar
         self.progress_label.config(text=message)
         self.process_btn.config(state=tk.NORMAL)
         self.processing = False

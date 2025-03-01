@@ -83,26 +83,59 @@ def build_executable():
                 "Warning: Failed to install webrtcvad. The executable may not work correctly."
             )
 
+    # Install pydantic if not already installed
+    try:
+        import pydantic
+
+        print("pydantic is already installed")
+    except ImportError:
+        print("Installing pydantic...")
+        if run_command([sys.executable, "-m", "pip", "install", "pydantic"]) != 0:
+            print(
+                "Warning: Failed to install pydantic. The executable may not work correctly."
+            )
+
     # Make sure main.py contents are properly accessible
     print("\nStep 4: Validating imports...")
     try:
         # Test the imports that will be needed
-        with open("main.py", "r") as f:
-            print("main.py exists and is readable")
+        with open("app.py", "r") as f:
+            print("app.py exists and is readable")
     except Exception as e:
-        print(f"Warning: Couldn't read main.py: {e}")
+        print(f"Warning: Couldn't read app.py: {e}")
 
-    # Build the GUI application - use onedir mode for faster loading
-    print("\nStep 5: Building the VideoProcessor application...")
+    # Create necessary folders that will be bundled with the executable
+    print("\nStep 5: Creating necessary folders...")
+    for folder in ["raw", "audio", "jsons", "edited", "subtitles", "logs"]:
+        os.makedirs(folder, exist_ok=True)
+        print(f"Created {folder} directory")
+
+    # Build the GUI application - use onefile mode for a single executable
+    print("\nStep 6: Building the VideoProcessor application...")
     build_command = [
         sys.executable,
         "-m",
         "PyInstaller",
         "--name=VideoProcessor",
-        # Using onedir instead of onefile for faster loading
+        "--onefile",  # Create a single executable file
+        "--windowed",  # Hide the console window
         "--log-level=INFO",
+        # Add required data files
         "--add-data",
         ".env;.",  # Include .env file with the executable
+        # Add folder structures to the executable
+        "--add-data",
+        "raw;raw",
+        "--add-data",
+        "audio;audio",
+        "--add-data",
+        "jsons;jsons",
+        "--add-data",
+        "edited;edited",
+        "--add-data",
+        "subtitles;subtitles",
+        "--add-data",
+        "logs;logs",
         # Add hidden imports
         "--hidden-import=webrtcvad",
         "--hidden-import=pydub",
@@ -112,87 +145,54 @@ def build_executable():
         "--hidden-import=src.utils.json_utils",
         "--hidden-import=src.utils.srt_utils",
         "--hidden-import=src.video.editor",
+        # Add pydantic and its submodules to fix the missing module error
+        "--hidden-import=pydantic",
+        "--hidden-import=pydantic.deprecated",
+        "--hidden-import=pydantic.deprecated.decorator",
+        "--hidden-import=pydantic.json",
+        "--hidden-import=pydantic.typing",
+        "--hidden-import=pydantic.version",
+        "--hidden-import=pydantic.fields",
+        "--hidden-import=pydantic.main",
+        "--hidden-import=pydantic.config",
+        "--hidden-import=pydantic.class_validators",
+        "--hidden-import=pydantic.error_wrappers",
+        "--hidden-import=pydantic.errors",
+        "--hidden-import=pydantic.schema",
+        "--hidden-import=pydantic.color",
+        "--hidden-import=pydantic.networks",
+        "--hidden-import=pydantic.datetime_parse",
+        "--hidden-import=pydantic.types",
+        # Also include langchain dependencies
+        "--hidden-import=langchain",
+        "--hidden-import=langchain_google_genai",
     ]
 
     if os.path.exists("icon.ico"):
         build_command.append("--icon=icon.ico")
 
+    # Add app.py as the main file
     build_command.append("app.py")
 
     if run_command(build_command) != 0:
         print("Error: Failed to build the application. Aborting.")
         return False
 
-    # Create a distribution folder
-    print("\nStep 6: Creating a distribution package...")
-    dist_folder = "VideoProcessor-Dist"
-
+    # Copy the executable to the root directory for easy access
     try:
-        # Create distribution folder
-        if os.path.exists(dist_folder):
-            shutil.rmtree(dist_folder)
-        os.makedirs(dist_folder)
-
-        # Copy the entire dist/VideoProcessor folder
-        dist_path = os.path.join("dist", "VideoProcessor")
-        if os.path.exists(dist_path):
-            # Copy the entire VideoProcessor folder
-            shutil.copytree(dist_path, os.path.join(dist_folder, "VideoProcessor"))
-            print(f"Copied VideoProcessor folder to distribution folder")
-
-            # Create a batch file to run the executable
-            batch_path = os.path.join(dist_folder, "Run_VideoProcessor.bat")
-            with open(batch_path, "w") as f:
-                f.write("@echo off\n")
-                f.write("cd VideoProcessor\n")
-                f.write("start VideoProcessor.exe\n")
-            print(f"Created batch file launcher")
+        source_exe = os.path.join("dist", "VideoProcessor.exe")
+        if os.path.exists(source_exe):
+            shutil.copy(source_exe, "VideoProcessor.exe")
+            print(f"Copied VideoProcessor.exe to root directory for easy access")
         else:
-            print(f"Warning: Couldn't find {dist_path}")
-
-        # Create empty folders
-        for folder in ["audio", "jsons", "edited", "subtitles", "logs"]:
-            os.makedirs(
-                os.path.join(dist_folder, "VideoProcessor", folder), exist_ok=True
-            )
-            print(f"Created {folder} directory in distribution")
-
-        # Create .env file if it doesn't exist
-        env_path = os.path.join(dist_folder, "VideoProcessor", ".env")
-        if not os.path.exists(".env"):
-            with open(env_path, "w") as f:
-                f.write("# API Keys and Configuration\n")
-                f.write("OPENAI_API_KEY=your_openai_api_key_here\n")
-            print("Created template .env file")
-        else:
-            shutil.copy(".env", env_path)
-            print("Copied existing .env file")
-
-        # Create README
-        with open(os.path.join(dist_folder, "README.txt"), "w") as f:
-            f.write("=== Video Processor ===\n\n")
-            f.write("How to use:\n")
-            f.write(
-                "1. Edit the .env file in the VideoProcessor folder to add your API keys\n"
-            )
-            f.write("2. Double-click Run_VideoProcessor.bat to start the application\n")
-            f.write("3. Click 'Browse' to select your video file\n")
-            f.write("4. Choose your output options\n")
-            f.write("5. Click 'Process Video'\n\n")
-            f.write(
-                "Output files will be placed in these folders inside the VideoProcessor directory:\n"
-            )
-            f.write("- subtitles: SRT subtitle files\n")
-            f.write("- edited: Final edited videos\n")
-            f.write("- jsons: Raw transcript data\n")
-        print("Created README file")
-
+            print(f"Warning: Couldn't find {source_exe}")
     except Exception as e:
-        print(f"Warning: Failed to create distribution package: {e}")
+        print(f"Warning: Failed to copy executable: {e}")
 
     print("\n=== Build Complete ===")
-    print(f"The application is located in the '{dist_folder}' folder")
-    print(f"Double-click Run_VideoProcessor.bat to start the application")
+    print("The application is located in the 'dist' folder")
+    print("A copy has also been placed in the root directory for convenience")
+    print("You can now run VideoProcessor.exe directly")
     return True
 
 

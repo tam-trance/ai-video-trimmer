@@ -36,3 +36,15 @@ keep some folders like /audio
 
 /myenv/*
 /myenv
+
+/build/*
+/build
+
+/dist/*
+/dist
+
+/bin/*
+/bin
+
+
+VideoProcessor.spec

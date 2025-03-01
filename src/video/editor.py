@@ -28,7 +28,13 @@ def create_final_video(video_path, segments, output_path=None):
         # Ensure the directory exists
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
-        final_clip.write_videofile(output_path, codec="libx264", audio_codec="aac")
+        # Disable the tqdm progress bar to prevent the NoneType error
+        final_clip.write_videofile(
+            output_path,
+            codec="libx264",
+            audio_codec="aac",
+            logger=None,  # Disable the default logger to prevent NoneType error
+        )
         final_clip.close()
     video.close()
 
