@@ -8,6 +8,45 @@ import platform
 import tkinter as tk
 from tkinter import ttk
 
+# Global theme instance
+_theme_instance = None
+
+
+def setup_theme(root=None):
+    """Set up the application theme
+
+    Args:
+        root: The Tkinter root window (optional if already set)
+
+    Returns:
+        The theme instance
+    """
+    global _theme_instance
+
+    # If root is not provided, use the default Tk instance
+    if root is None:
+        root = tk._default_root
+
+    if root is None:
+        raise ValueError("No root window available. Please create a Tk instance first.")
+
+    if _theme_instance is None:
+        _theme_instance = ShadcnTheme(root)
+
+    return _theme_instance
+
+
+def get_theme():
+    """Get the current theme instance
+
+    Returns:
+        The theme instance
+    """
+    global _theme_instance
+    if _theme_instance is None:
+        raise ValueError("Theme not initialized. Call setup_theme first.")
+    return _theme_instance
+
 
 class ShadcnTheme:
     """A theme class that applies Shadcn UI-like styling to Tkinter widgets"""
@@ -357,7 +396,12 @@ class ShadcnTheme:
                 ("readonly", self.COLORS["surface"]),
                 ("disabled", self.COLORS["secondary"]),
             ],
+            selectbackground=[("readonly", self.COLORS["primary"])],
+            selectforeground=[("readonly", "#FFFFFF")],
             bordercolor=[("focus", self.COLORS["primary"])],
+            background=[
+                ("hover", self.COLORS["surface"])
+            ],  # Prevent hover background change
         )
 
     def _configure_spinbox(self):
@@ -371,11 +415,15 @@ class ShadcnTheme:
             bordercolor=self.COLORS["border"],
             padding=8,
             arrowsize=12,
+            arrowcolor="#FFFFFF",  # Set the arrow color to white
         )
         self.style.map(
             "TSpinbox",
             fieldbackground=[("readonly", self.COLORS["surface"])],
             bordercolor=[("focus", self.COLORS["primary"])],
+            background=[
+                ("hover", self.COLORS["surface"])
+            ],  # Prevent hover background change
         )
 
     def _configure_progressbar(self):

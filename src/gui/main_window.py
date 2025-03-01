@@ -13,9 +13,9 @@ from tkinter import filedialog, messagebox, ttk
 
 from PIL import Image, ImageTk
 
+from src.gui import theme
 from src.gui.components import FolderButton, InfoIcon
 from src.gui.processing_controller import ProcessingController
-from src.gui.theme import ShadcnTheme
 from src.gui.tooltips import create_tooltip
 
 
@@ -24,27 +24,29 @@ class ModernVideoProcessorApp:
     Modern UI for the Video Processor Application with step-by-step processing
     """
 
-    def __init__(self, root, app_dir):
-        """
-        Initialize the application UI
-
-        Args:
-            root: Tkinter root window
-            app_dir: Application directory
-        """
+    def __init__(self, root, app_dir=None):
+        """Initialize the main application window"""
         self.root = root
-        self.app_dir = app_dir
-        self.controller = ProcessingController(app_dir)
+        root.title("AI Video Trimmer")
 
-        # Set up the window
-        self.setup_window()
+        self.app_dir = app_dir or os.path.dirname(os.path.abspath(__file__))
+        self.controller = ProcessingController(self.app_dir)
+        self.controller.set_callback(self.update_log)
 
-        # Apply the modern theme
-        self.theme = ShadcnTheme(root)
+        # Initialize file tracking
+        self.current_file = None
 
-        # Create UI components
-        self.create_main_frame()
-        self.create_header()
+        # Configure the theme
+        self.theme = theme.setup_theme(root)
+
+        # Set geometry and minimum size
+        root.geometry("1200x700")
+        root.minsize(1000, 600)
+
+        # Configure main grid
+        self.configure_grid()
+
+        # Create the two-column layout
         self.create_two_column_layout()
 
         # Processing variables
@@ -53,52 +55,22 @@ class ModernVideoProcessorApp:
 
         logging.info("Modern UI initialized")
 
-    def setup_window(self):
-        """Set up the main window properties"""
-        self.root.title("Video Processor")
-        self.root.geometry("1280x720")  # Wider window to accommodate horizontal layout
-        self.root.minsize(1024, 600)  # Increased minimum width
-
-        # Set icon if available
-        icon_path = os.path.join(self.app_dir, "icon.ico")
-        if os.path.exists(icon_path):
-            try:
-                self.root.iconbitmap(icon_path)
-            except Exception as e:
-                logging.warning(f"Could not set application icon: {e}")
-
-        # Configure grid
+    def configure_grid(self):
+        """Configure the main grid layout"""
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
-
-    def create_main_frame(self):
-        """Create the main application frame"""
-        self.main_frame = ttk.Frame(self.root, padding="15")
-        self.main_frame.grid(row=0, column=0, sticky="nsew")
-
-        # Configure main frame grid
-        self.main_frame.columnconfigure(0, weight=3)  # Left column (main workflow)
-        self.main_frame.columnconfigure(1, weight=1)  # Right column (output files)
-        self.main_frame.rowconfigure(1, weight=1)  # Content row should expand
-
-    def create_header(self):
-        """Create the application header"""
-        header = ttk.Label(
-            self.main_frame, text="Video Processor", style="Header.TLabel"
-        )
-        header.grid(row=0, column=0, columnspan=2, sticky="nw", pady=(0, 15))
 
     def create_two_column_layout(self):
         """Create the two-column layout with processing on left, output on right"""
         # Left column container for main workflow
-        self.left_column = ttk.Frame(self.main_frame)
-        self.left_column.grid(row=1, column=0, sticky="nsew", padx=(0, 10))
+        self.left_column = ttk.Frame(self.root)
+        self.left_column.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
         self.left_column.columnconfigure(0, weight=1)
         self.left_column.rowconfigure(2, weight=1)  # Make log section expandable
 
         # Right column for log only (removed output files section)
-        self.right_column = ttk.Frame(self.main_frame)
-        self.right_column.grid(row=1, column=1, sticky="nsew", padx=(10, 0))
+        self.right_column = ttk.Frame(self.root)
+        self.right_column.grid(row=0, column=1, sticky="nsew", padx=(10, 0))
         self.right_column.columnconfigure(0, weight=1)
         self.right_column.rowconfigure(0, weight=1)  # Make log section take full height
 
@@ -111,183 +83,247 @@ class ModernVideoProcessorApp:
 
     def create_upper_section(self):
         """Create the upper section containing file selection and parameters side by side"""
-        upper_frame = ttk.Frame(self.left_column)
-        upper_frame.grid(row=0, column=0, sticky="ew", pady=(0, 10))
-        upper_frame.columnconfigure(0, weight=1)
-        upper_frame.columnconfigure(1, weight=1)
+        self.upper_frame = ttk.Frame(self.left_column)
+        self.upper_frame.grid(row=0, column=0, sticky="ew", pady=(0, 10))
+        self.upper_frame.columnconfigure(0, weight=1)
+        self.upper_frame.columnconfigure(1, weight=1)
 
         # File selection section (left side)
-        self.create_file_section(upper_frame, 0)
+        self.create_file_section()
 
         # Parameters section (right side)
-        self.create_parameters_section(upper_frame, 1)
+        self.create_parameters_section()
 
-    def create_file_section(self, parent, column):
+    def create_file_section(self):
         """Create the file selection section"""
-        file_frame = ttk.LabelFrame(parent, text="Video Selection", padding="10")
-        file_frame.grid(
-            row=0,
-            column=column,
-            sticky="nsew",
-            padx=(0 if column == 0 else 10, 10 if column == 0 else 0),
+        file_frame = ttk.LabelFrame(
+            self.upper_frame, text="File Selection", padding="10"
         )
-        file_frame.columnconfigure(1, weight=1)
+        file_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 5))
+        file_frame.columnconfigure(0, weight=1)
+        file_frame.columnconfigure(1, weight=0)
+        file_frame.columnconfigure(2, weight=0)
 
-        # File selection
-        ttk.Label(file_frame, text="Video File:").grid(
-            row=0, column=0, sticky="w", pady=5
+        # Row 0: Title and Browse buttons
+        self.file_label = ttk.Label(
+            file_frame, text="No file selected", style="FileLabel.TLabel"
         )
+        self.file_label.grid(row=0, column=0, padx=5, pady=5, sticky="ew")
 
-        self.input_file = tk.StringVar()
-        input_entry = ttk.Entry(file_frame, textvariable=self.input_file)
-        input_entry.grid(row=0, column=1, sticky="ew", padx=5, pady=5)
-
-        browse_btn = ttk.Button(
+        self.browse_btn = ttk.Button(
             file_frame,
             text="Browse",
-            command=self.browse_input,
-            style="Primary.TButton",
-            width=8,
+            style="BrowseButton.TButton",
+            command=self.browse_file,
         )
-        browse_btn.grid(row=0, column=2, pady=5, padx=(0, 5))
+        self.browse_btn.grid(row=0, column=1, padx=5, pady=5)
+        create_tooltip(self.browse_btn, "Select a video file to process")
 
-        # Open videos folder button
-        videos_folder_btn = FolderButton(
+        self.refresh_btn = ttk.Button(
             file_frame,
-            os.path.dirname(self.app_dir) if self.app_dir else os.path.expanduser("~"),
-            tooltip_text="Open videos folder",
+            text="↻",
+            width=3,
+            style="BrowseButton.TButton",
+            command=self.refresh_files,
         )
-        videos_folder_btn.grid(row=0, column=3, pady=5, padx=(0, 5))
+        self.refresh_btn.grid(row=0, column=2, padx=5, pady=5)
+        create_tooltip(self.refresh_btn, "Refresh file status")
 
-        # File status
-        self.file_status = ttk.Label(
-            file_frame, text="No file selected", style="Status.TLabel"
-        )
-        self.file_status.grid(row=1, column=0, columnspan=4, sticky="w", pady=(0, 5))
-
-    def create_parameters_section(self, parent, column):
-        """Create the segment detection parameters section"""
+    def create_parameters_section(self):
+        """Create the parameters section"""
         params_frame = ttk.LabelFrame(
-            parent, text="Segment Detection Parameters", padding="10"
+            self.upper_frame, text="Segment Detection Parameters", padding="10"
         )
-        params_frame.grid(
-            row=0,
-            column=column,
-            sticky="nsew",
-            padx=(10 if column == 0 else 0, 0 if column == 0 else 10),
-        )
+        params_frame.grid(row=0, column=1, sticky="nsew", padx=(5, 0))
 
-        # Create a 2x2 grid for parameters
-        for i in range(2):
-            params_frame.columnconfigure(i * 3, weight=0)  # Label column
-            params_frame.columnconfigure(i * 3 + 1, weight=0)  # Value column
-            params_frame.columnconfigure(i * 3 + 2, weight=1)  # Info column
+        # Store original parameter values for comparison
+        self.original_params = {
+            "frame_duration": 30,
+            "speech_threshold": 75,
+            "speech_duration": 50,
+            "silence_duration": 300,
+        }
 
-        # Frame Duration parameter
+        # Row 0: Frame Duration
         ttk.Label(params_frame, text="Frame Duration (ms):").grid(
-            row=0, column=0, sticky="w", pady=5, padx=(0, 5)
+            row=0, column=0, sticky="w", padx=5, pady=5
         )
 
         self.frame_duration = tk.IntVar(value=30)
-        frame_values = [10, 20, 30]  # Only these values are supported
-        frame_combo = ttk.Combobox(
+        frame_duration_entry = ttk.Spinbox(
             params_frame,
+            from_=10,
+            to=100,
             textvariable=self.frame_duration,
-            values=frame_values,
-            state="readonly",
             width=5,
+            command=self.on_parameter_change,
         )
-        frame_combo.grid(row=0, column=1, sticky="w", pady=5)
+        frame_duration_entry.grid(row=0, column=1, sticky="w", padx=5, pady=5)
+        frame_duration_entry.bind("<KeyRelease>", self.on_parameter_change)
 
-        # Use the InfoIcon component instead of ttk.Label
         frame_info = InfoIcon(
             params_frame,
-            "Frame duration in milliseconds. WebRTC VAD only supports 10, 20, or 30ms. "
-            "Shorter frames provide more precise segmentation but may be more sensitive to noise.",
+            "Duration in milliseconds of each audio frame to analyze.\nShort duration (10-20ms): More precise but slower.\nLong duration (50-100ms): Faster but less precise.",
         )
-        frame_info.grid(row=0, column=2, sticky="w", padx=(5, 20))
+        frame_info.grid(row=0, column=2, padx=2, pady=5)
 
-        # Padding Duration parameter
-        ttk.Label(params_frame, text="Padding Duration (ms):").grid(
-            row=0, column=3, sticky="w", pady=5, padx=(20, 5)
+        # Row 1: Speech Detection Threshold
+        ttk.Label(params_frame, text="Speech Detection (%):").grid(
+            row=1, column=0, sticky="w", padx=5, pady=5
         )
 
-        self.padding_duration = tk.IntVar(value=300)
-        padding_spinbox = ttk.Spinbox(
+        self.speech_threshold = tk.IntVar(value=75)
+        threshold_entry = ttk.Spinbox(
+            params_frame,
+            from_=1,
+            to=100,
+            textvariable=self.speech_threshold,
+            width=5,
+            command=self.on_parameter_change,
+        )
+        threshold_entry.grid(row=1, column=1, sticky="w", padx=5, pady=5)
+        threshold_entry.bind("<KeyRelease>", self.on_parameter_change)
+
+        threshold_info = InfoIcon(
+            params_frame,
+            "Percentage of frames in a segment that must contain speech.\nHigher values (75-90%): Only strong speech is detected.\nLower values (50-60%): More sensitive, may include ambient sounds.",
+        )
+        threshold_info.grid(row=1, column=2, padx=2, pady=5)
+
+        # Row 2: Minimum Speech Duration
+        ttk.Label(params_frame, text="Min Speech (ms):").grid(
+            row=2, column=0, sticky="w", padx=5, pady=5
+        )
+
+        self.min_speech_duration = tk.IntVar(value=50)
+        speech_duration_entry = ttk.Spinbox(
+            params_frame,
+            from_=10,
+            to=1000,
+            textvariable=self.min_speech_duration,
+            width=5,
+            command=self.on_parameter_change,
+        )
+        speech_duration_entry.grid(row=2, column=1, sticky="w", padx=5, pady=5)
+        speech_duration_entry.bind("<KeyRelease>", self.on_parameter_change)
+
+        speech_info = InfoIcon(
+            params_frame,
+            "Minimum duration (ms) for a speech segment to be detected.\nShort duration (30-50ms): Catches short utterances, may include noise.\nLong duration (200-500ms): Only catches sustained speech.",
+        )
+        speech_info.grid(row=2, column=2, padx=2, pady=5)
+
+        # Row 3: Silence Duration
+        ttk.Label(params_frame, text="Min Silence (ms):").grid(
+            row=3, column=0, sticky="w", padx=5, pady=5
+        )
+
+        self.min_silence_duration = tk.IntVar(value=300)
+        silence_entry = ttk.Spinbox(
             params_frame,
             from_=50,
-            to=1000,
-            increment=50,
-            textvariable=self.padding_duration,
+            to=2000,
+            textvariable=self.min_silence_duration,
             width=5,
+            command=self.on_parameter_change,
         )
-        padding_spinbox.grid(row=0, column=4, sticky="w", pady=5)
+        silence_entry.grid(row=3, column=1, sticky="w", padx=5, pady=5)
+        silence_entry.bind("<KeyRelease>", self.on_parameter_change)
 
-        # Use the InfoIcon component
-        padding_info = InfoIcon(
+        silence_info = InfoIcon(
             params_frame,
-            "Maximum gap between speech segments (in ms) to consider them as a single segment. "
-            "Higher values merge segments that are close together, reducing the number of cuts.",
+            "Minimum duration (ms) of silence to separate segments.\nShort duration (100-200ms): More segments with natural pauses.\nLong duration (500-1000ms): Only significant pauses create new segments.",
         )
-        padding_info.grid(row=0, column=5, sticky="w", padx=(5, 10))
+        silence_info.grid(row=3, column=2, padx=2, pady=5)
 
-        # Aggressiveness parameter
-        ttk.Label(params_frame, text="Aggressiveness (0-3):").grid(
-            row=1, column=0, sticky="w", pady=5, padx=(0, 5)
-        )
-
-        self.aggressiveness = tk.IntVar(value=3)
-        agg_values = [0, 1, 2, 3]
-        agg_combo = ttk.Combobox(
-            params_frame,
-            textvariable=self.aggressiveness,
-            values=agg_values,
-            state="readonly",
-            width=5,
-        )
-        agg_combo.grid(row=1, column=1, sticky="w", pady=5)
-
-        # Use the InfoIcon component
-        agg_info = InfoIcon(
-            params_frame,
-            "VAD aggressiveness (0-3). Higher values are more aggressive in filtering out non-speech. "
-            "0 is least aggressive, 3 is most aggressive in labeling audio as speech.",
-        )
-        agg_info.grid(row=1, column=2, sticky="w", padx=(5, 20))
-
-        # Post-speech padding parameter
-        ttk.Label(params_frame, text="Post-speech Padding (sec):").grid(
-            row=1, column=3, sticky="w", pady=5, padx=(20, 5)
-        )
-
-        self.post_padding = tk.DoubleVar(value=0.2)
-        post_spinbox = ttk.Spinbox(
-            params_frame,
-            from_=0.0,
-            to=1.0,
-            increment=0.1,
-            textvariable=self.post_padding,
-            width=5,
-        )
-        post_spinbox.grid(row=1, column=4, sticky="w", pady=5)
-
-        # Use the InfoIcon component
-        post_info = InfoIcon(
-            params_frame,
-            "Additional padding (in seconds) to add after each speech segment. "
-            "Higher values include more audio after speech ends, preventing cutoffs.",
-        )
-        post_info.grid(row=1, column=5, sticky="w", padx=(5, 10))
-
-        # Apply parameters button - Higher contrast with Primary style
+        # Apply button at the bottom
         self.apply_params_btn = ttk.Button(
             params_frame,
             text="Apply Parameters",
+            style="Apply.TButton",
             command=self.apply_parameters,
-            style="Primary.TButton",  # Changed to Primary for better contrast
-            width=16,
+            state="disabled",  # Initially disabled
         )
-        self.apply_params_btn.grid(row=2, column=0, columnspan=6, pady=(8, 0))
+        self.apply_params_btn.grid(
+            row=4, column=0, columnspan=3, sticky="ew", padx=5, pady=(10, 5)
+        )
+        create_tooltip(self.apply_params_btn, "Apply the modified parameters")
+
+    def on_parameter_change(self, event=None):
+        """Called when any parameter is changed"""
+        current_params = {
+            "frame_duration": self.frame_duration.get(),
+            "speech_threshold": self.speech_threshold.get(),
+            "speech_duration": self.min_speech_duration.get(),
+            "silence_duration": self.min_silence_duration.get(),
+        }
+
+        # Check if any parameter is different from original
+        params_changed = any(
+            current_params[key] != self.original_params[key]
+            for key in self.original_params
+        )
+
+        # Enable apply button only if parameters have changed
+        if params_changed:
+            self.apply_params_btn.config(state="normal")
+        else:
+            self.apply_params_btn.config(state="disabled")
+
+    def apply_parameters(self):
+        """Apply the currently set parameters"""
+        # Update the controller with new parameters
+        self.controller.set_segment_params(
+            frame_duration=self.frame_duration.get(),
+            speech_threshold=self.speech_threshold.get(),
+            min_speech_duration=self.min_speech_duration.get(),
+            min_silence_duration=self.min_silence_duration.get(),
+        )
+
+        # Update original params to match current ones
+        self.original_params = {
+            "frame_duration": self.frame_duration.get(),
+            "speech_threshold": self.speech_threshold.get(),
+            "speech_duration": self.min_speech_duration.get(),
+            "silence_duration": self.min_silence_duration.get(),
+        }
+
+        # Disable the apply button after applying
+        self.apply_params_btn.config(state="disabled")
+
+        # Log the applied parameters
+        self.controller.log_info("Applied parameters:")
+        self.controller.log_info(f"  Frame Duration: {self.frame_duration.get()}ms")
+        self.controller.log_info(f"  Speech Threshold: {self.speech_threshold.get()}%")
+        self.controller.log_info(
+            f"  Min Speech Duration: {self.min_speech_duration.get()}ms"
+        )
+        self.controller.log_info(
+            f"  Min Silence Duration: {self.min_silence_duration.get()}ms"
+        )
+
+    def refresh_files(self):
+        """Refresh the file status and check for existing files"""
+        if self.current_file:
+            # Reset status
+            self.step1_status.config(text="Not started")
+            self.step2_status.config(text="Waiting for segment detection")
+            self.step3_status.config(text="Waiting for transcription")
+            self.srt_status.config(text="Waiting for suggestions")
+            self.video_status.config(text="Waiting for suggestions")
+
+            # Disable processing buttons
+            self.step2_btn.config(state="disabled")
+            self.step3_btn.config(state="disabled")
+            self.srt_btn.config(state="disabled")
+            self.video_btn.config(state="disabled")
+
+            # Check for existing files
+            self.check_existing_files()
+
+            self.controller.log_info("File status refreshed")
+        else:
+            self.controller.log_warning("No file selected to refresh")
 
     def create_processing_section(self):
         """Create the step-by-step processing section"""
@@ -312,6 +348,9 @@ class ModernVideoProcessorApp:
             command=self.run_detect_segments,
         )
         self.step1_btn.grid(row=0, column=0, pady=5, sticky="ew")
+        create_tooltip(
+            self.step1_btn, "Detect segments where speech occurs in the video"
+        )
 
         step1_status_frame = ttk.Frame(step1_frame)
         step1_status_frame.grid(row=1, column=0, sticky="ew")
@@ -343,6 +382,7 @@ class ModernVideoProcessorApp:
             state="disabled",
         )
         self.step2_btn.grid(row=0, column=0, pady=5, sticky="ew")
+        create_tooltip(self.step2_btn, "Transcribe the speech segments to text")
 
         step2_status_frame = ttk.Frame(step2_frame)
         step2_status_frame.grid(row=1, column=0, sticky="ew")
@@ -376,6 +416,7 @@ class ModernVideoProcessorApp:
             state="disabled",
         )
         self.step3_btn.grid(row=0, column=0, pady=5, sticky="ew")
+        create_tooltip(self.step3_btn, "Generate edit suggestions using AI")
 
         step3_status_frame = ttk.Frame(step3_frame)
         step3_status_frame.grid(row=1, column=0, sticky="ew")
@@ -414,6 +455,7 @@ class ModernVideoProcessorApp:
             state="disabled",
         )
         self.srt_btn.grid(row=0, column=0, pady=5, sticky="ew")
+        create_tooltip(self.srt_btn, "Generate subtitle file from the suggestions")
 
         srt_status_frame = ttk.Frame(self.srt_frame)
         srt_status_frame.grid(row=1, column=0, sticky="ew")
@@ -446,6 +488,7 @@ class ModernVideoProcessorApp:
             state="disabled",
         )
         self.video_btn.grid(row=0, column=0, pady=5, sticky="ew")
+        create_tooltip(self.video_btn, "Create edited video based on the suggestions")
 
         video_status_frame = ttk.Frame(self.video_frame)
         video_status_frame.grid(row=1, column=0, sticky="ew")
@@ -476,13 +519,13 @@ class ModernVideoProcessorApp:
             log_frame,
             height=12,
             wrap=tk.WORD,
-            background=self.theme.get_color("surface"),
-            foreground=self.theme.get_color("foreground"),
+            background="#27272A",  # Dark theme background
+            foreground="#FFFFFF",  # White text
             borderwidth=1,
             relief="solid",
             padx=10,
             pady=10,
-            font=self.theme.get_font("default"),
+            font=("Segoe UI", 9),
         )
         self.log_text.grid(row=0, column=0, sticky="nsew")
         self.log_text.config(state=tk.DISABLED)
@@ -509,31 +552,45 @@ class ModernVideoProcessorApp:
         self.log_text.see(tk.END)
         self.log_text.config(state=tk.DISABLED)
 
-    def browse_input(self):
-        """Browse for input video file"""
-        self.log_message("Browsing for input video file...")
-        file_types = [("Video files", "*.mp4 *.mov *.avi *.mkv"), ("All files", "*.*")]
-        file_path = filedialog.askopenfilename(
-            title="Select Video File", filetypes=file_types
+    def browse_file(self):
+        """Open a file dialog to select a video file"""
+        video_file = filedialog.askopenfilename(
+            title="Select a video file",
+            filetypes=(("MP4 files", "*.mp4"), ("All files", "*.*")),
         )
 
-        if file_path:
-            self.input_file.set(file_path)
-            self.controller.set_video_path(file_path)
-            self.file_status.config(
-                text=f"Selected: {os.path.basename(file_path)}", style="Success.TLabel"
-            )
-            self.log_message(f"Selected video file: {file_path}")
+        if not video_file:
+            return
 
-            # Check for existing JSON files
-            self.check_existing_files()
+        # Reset all statuses
+        self.step1_status.config(text="Not started")
+        self.step2_status.config(text="Waiting for segment detection")
+        self.step3_status.config(text="Waiting for transcription")
+        self.srt_status.config(text="Waiting for suggestions")
+        self.video_status.config(text="Waiting for suggestions")
 
-            # Update button states
-            self.update_button_states()
+        # Disable processing buttons
+        self.step2_btn.config(state="disabled")
+        self.step3_btn.config(state="disabled")
+        self.srt_btn.config(state="disabled")
+        self.video_btn.config(state="disabled")
+
+        # Set the file and update the UI
+        self.current_file = video_file
+        self.file_label.config(text=os.path.basename(video_file))
+        self.controller.set_video_path(video_file)
+
+        # Enable the first processing button
+        self.step1_btn.config(state="normal")
+
+        # Check for existing files
+        self.check_existing_files()
+
+        self.controller.log_info(f"Selected video file: {video_file}")
 
     def check_existing_files(self):
         """Check if JSON files already exist for the selected video and update UI accordingly"""
-        if not self.controller.video_path:
+        if not self.current_file:
             return
 
         # Check dependencies using the controller
@@ -545,8 +602,8 @@ class ModernVideoProcessorApp:
                 text=f"Found: {os.path.basename(self.controller.segments_file)}",
                 style="Success.TLabel",
             )
-            self.step2_btn.config(state=tk.NORMAL)
-            self.log_message(
+            self.step2_btn.config(state="normal")
+            self.controller.log_info(
                 f"Found existing segments file: {self.controller.segments_file}"
             )
 
@@ -555,8 +612,8 @@ class ModernVideoProcessorApp:
                 text=f"Found: {os.path.basename(self.controller.transcription_file)}",
                 style="Success.TLabel",
             )
-            self.step3_btn.config(state=tk.NORMAL)
-            self.log_message(
+            self.step3_btn.config(state="normal")
+            self.controller.log_info(
                 f"Found existing transcription file: {self.controller.transcription_file}"
             )
 
@@ -565,63 +622,23 @@ class ModernVideoProcessorApp:
                 text=f"Found: {os.path.basename(self.controller.suggestion_file)}",
                 style="Success.TLabel",
             )
-            self.srt_btn.config(state=tk.NORMAL)
-            self.video_btn.config(state=tk.NORMAL)
-            self.srt_status.config(text="Ready", style="Status.TLabel")
-            self.video_status.config(text="Ready", style="Status.TLabel")
-            self.log_message(
+            self.srt_btn.config(state="normal")
+            self.video_btn.config(state="normal")
+            self.controller.log_info(
                 f"Found existing suggestion file: {self.controller.suggestion_file}"
             )
-
-        if deps["srt_generated"]:
-            self.srt_status.config(
-                text=f"Found: {os.path.basename(self.controller.srt_file)}",
-                style="Success.TLabel",
-            )
-            self.log_message(f"Found existing SRT file: {self.controller.srt_file}")
-
-        if deps["video_generated"]:
-            self.video_status.config(
-                text=f"Found: {os.path.basename(self.controller.output_video)}",
-                style="Success.TLabel",
-            )
-            self.log_message(
-                f"Found existing edited video: {self.controller.output_video}"
-            )
-
-    def apply_parameters(self):
-        """Apply the segment detection parameters"""
-        if not self.controller.video_path:
-            messagebox.showwarning(
-                "No Video Selected", "Please select a video file first."
-            )
-            return
-
-        # Apply parameters
-        self.controller.frame_duration = self.frame_duration.get()
-        self.controller.padding_duration = self.padding_duration.get()
-        self.controller.aggressiveness = self.aggressiveness.get()
-        self.controller.post_padding = self.post_padding.get()
-
-        # Log the applied parameters
-        self.log_message(
-            f"Applied parameters: frame_duration={self.frame_duration.get()}ms, "
-            f"padding_duration={self.padding_duration.get()}ms, "
-            f"aggressiveness={self.aggressiveness.get()}, "
-            f"post_padding={self.post_padding.get()}s"
-        )
 
     def update_button_states(self):
         """Update the enabled/disabled state of the processing buttons"""
         # Enable step 1 if video is selected
         if self.controller.video_path:
-            self.step1_btn.config(state=tk.NORMAL)
+            self.step1_btn.config(state="normal")
         else:
-            self.step1_btn.config(state=tk.DISABLED)
-            self.step2_btn.config(state=tk.DISABLED)
-            self.step3_btn.config(state=tk.DISABLED)
-            self.srt_btn.config(state=tk.DISABLED)
-            self.video_btn.config(state=tk.DISABLED)
+            self.step1_btn.config(state="disabled")
+            self.step2_btn.config(state="disabled")
+            self.step3_btn.config(state="disabled")
+            self.srt_btn.config(state="disabled")
+            self.video_btn.config(state="disabled")
 
     def run_detect_segments(self):
         """Run step 1: Detect speech segments"""
@@ -632,15 +649,15 @@ class ModernVideoProcessorApp:
             return
 
         # Update parameters
-        self.controller.update_segment_params(
-            frame_duration_ms=self.frame_duration.get(),
-            padding_duration_ms=self.padding_duration.get(),
-            aggressiveness=self.aggressiveness.get(),
-            post_speech_padding_sec=self.post_padding.get(),
+        self.controller.set_segment_params(
+            frame_duration=self.frame_duration.get(),
+            speech_threshold=self.speech_threshold.get(),
+            min_speech_duration=self.min_speech_duration.get(),
+            min_silence_duration=self.min_silence_duration.get(),
         )
 
         # Disable UI during processing
-        self.step1_btn.config(state=tk.DISABLED)
+        self.step1_btn.config(state="disabled")
         self.step1_status.config(text="Processing...", style="Info.TLabel")
         self.processing = True
 
@@ -683,7 +700,7 @@ class ModernVideoProcessorApp:
             )
 
             # Enable the next step
-            self.step2_btn.config(state=tk.NORMAL)
+            self.step2_btn.config(state="normal")
             self.step2_status.config(text="Ready", style="Status.TLabel")
         else:
             self.step1_status.config(
@@ -692,7 +709,7 @@ class ModernVideoProcessorApp:
             self.log_message("Segment detection failed - no output file generated")
 
         # Re-enable the button
-        self.step1_btn.config(state=tk.NORMAL)
+        self.step1_btn.config(state="normal")
 
     def run_transcribe_segments(self):
         """Run step 2: Transcribe segments"""
@@ -705,7 +722,7 @@ class ModernVideoProcessorApp:
             return
 
         # Disable UI during processing
-        self.step2_btn.config(state=tk.DISABLED)
+        self.step2_btn.config(state="disabled")
         self.step2_status.config(text="Processing...", style="Info.TLabel")
         self.processing = True
 
@@ -750,7 +767,7 @@ class ModernVideoProcessorApp:
             )
 
             # Enable the next step
-            self.step3_btn.config(state=tk.NORMAL)
+            self.step3_btn.config(state="normal")
             self.step3_status.config(text="Ready", style="Status.TLabel")
         else:
             self.step2_status.config(
@@ -759,7 +776,7 @@ class ModernVideoProcessorApp:
             self.log_message("Transcription failed - no output file generated")
 
         # Re-enable the button
-        self.step2_btn.config(state=tk.NORMAL)
+        self.step2_btn.config(state="normal")
 
     def run_generate_suggestions(self):
         """Run step 3: Generate LLM suggestions"""
@@ -772,7 +789,7 @@ class ModernVideoProcessorApp:
             return
 
         # Disable UI during processing
-        self.step3_btn.config(state=tk.DISABLED)
+        self.step3_btn.config(state="disabled")
         self.step3_status.config(text="Processing...", style="Info.TLabel")
         self.processing = True
 
@@ -817,9 +834,9 @@ class ModernVideoProcessorApp:
             )
 
             # Enable the output steps
-            self.srt_btn.config(state=tk.NORMAL)
+            self.srt_btn.config(state="normal")
             self.srt_status.config(text="Ready", style="Status.TLabel")
-            self.video_btn.config(state=tk.NORMAL)
+            self.video_btn.config(state="normal")
             self.video_status.config(text="Ready", style="Status.TLabel")
         else:
             self.step3_status.config(
@@ -828,7 +845,7 @@ class ModernVideoProcessorApp:
             self.log_message("Suggestion generation failed - no output file generated")
 
         # Re-enable the button
-        self.step3_btn.config(state=tk.NORMAL)
+        self.step3_btn.config(state="normal")
 
     def run_generate_srt(self):
         """Run step 4a: Generate SRT file"""
@@ -841,7 +858,7 @@ class ModernVideoProcessorApp:
             return
 
         # Disable UI during processing
-        self.srt_btn.config(state=tk.DISABLED)
+        self.srt_btn.config(state="disabled")
         self.srt_status.config(text="Processing...", style="Info.TLabel")
         self.processing = True
 
@@ -884,7 +901,7 @@ class ModernVideoProcessorApp:
             self.log_message("SRT generation failed - no output file generated")
 
         # Re-enable the button
-        self.srt_btn.config(state=tk.NORMAL)
+        self.srt_btn.config(state="normal")
 
     def run_generate_video(self):
         """Run step 4b: Generate edited video"""
@@ -897,7 +914,7 @@ class ModernVideoProcessorApp:
             return
 
         # Disable UI during processing
-        self.video_btn.config(state=tk.DISABLED)
+        self.video_btn.config(state="disabled")
         self.video_status.config(text="Processing...", style="Info.TLabel")
         self.processing = True
 
@@ -945,7 +962,7 @@ class ModernVideoProcessorApp:
             self.log_message("Video generation failed - no output file generated")
 
         # Re-enable the button
-        self.video_btn.config(state=tk.NORMAL)
+        self.video_btn.config(state="normal")
 
     def _on_processing_error(self, error_msg):
         """Handle processing errors"""
@@ -954,15 +971,23 @@ class ModernVideoProcessorApp:
         self.log_message(error_msg)
 
         # Ensure all buttons are enabled
-        self.step1_btn.config(state=tk.NORMAL)
+        self.step1_btn.config(state="normal")
         if hasattr(self, "step2_btn"):
-            self.step2_btn.config(state=tk.NORMAL)
+            self.step2_btn.config(state="normal")
         if hasattr(self, "step3_btn"):
-            self.step3_btn.config(state=tk.NORMAL)
+            self.step3_btn.config(state="normal")
         if hasattr(self, "srt_btn"):
-            self.srt_btn.config(state=tk.NORMAL)
+            self.srt_btn.config(state="normal")
         if hasattr(self, "video_btn"):
-            self.video_btn.config(state=tk.NORMAL)
+            self.video_btn.config(state="normal")
 
         # Show error message
         messagebox.showerror("Processing Error", error_msg)
+
+    def update_log(self, message):
+        """Update the log with a message from the controller
+
+        Args:
+            message: Message to add to the log
+        """
+        self.log_message(message)

@@ -55,6 +55,9 @@ class ProcessingController:
         self.srt_file = None
         self.output_video = None
 
+        # Logging callback
+        self.log_callback = None
+
         # Default parameters for segment detection
         self.segment_params = {
             "frame_duration_ms": 30,
@@ -62,6 +65,34 @@ class ProcessingController:
             "aggressiveness": 3,
             "post_speech_padding_sec": 0.2,
         }
+
+    def set_callback(self, callback_func):
+        """Set the logging callback function
+
+        Args:
+            callback_func: Function to call for UI logging
+        """
+        self.log_callback = callback_func
+
+    def log_info(self, message):
+        """Log an informational message
+
+        Args:
+            message: Message to log
+        """
+        logging.info(message)
+        if self.log_callback:
+            self.log_callback(message)
+
+    def log_warning(self, message):
+        """Log a warning message
+
+        Args:
+            message: Message to log
+        """
+        logging.warning(message)
+        if self.log_callback:
+            self.log_callback(f"WARNING: {message}")
 
     def set_video_path(self, video_path):
         """Set the video path and derive related file paths"""
@@ -323,3 +354,28 @@ class ProcessingController:
                 logging.error(f"Error removing temp audio file: {e}")
                 return False
         return False
+
+    def set_segment_params(
+        self,
+        frame_duration,
+        speech_threshold,
+        min_speech_duration,
+        min_silence_duration,
+    ):
+        """Set the segment detection parameters
+
+        Args:
+            frame_duration: Duration in ms of each audio frame to analyze
+            speech_threshold: Percentage of frames that must contain speech
+            min_speech_duration: Minimum duration in ms for a speech segment
+            min_silence_duration: Minimum duration in ms of silence to separate segments
+        """
+        self.segment_params = {
+            "frame_duration": frame_duration,
+            "speech_threshold": speech_threshold,
+            "min_speech_duration": min_speech_duration,
+            "min_silence_duration": min_silence_duration,
+        }
+
+        self.log_info(f"Updated segment detection parameters")
+        return self.segment_params
