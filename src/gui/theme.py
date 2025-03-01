@@ -349,6 +349,7 @@ class ShadcnTheme:
             bordercolor=self.COLORS["border"],
             padding=8,
             arrowsize=15,
+            arrowcolor="#FFFFFF",  # Set the arrow color to white
         )
         self.style.map(
             "TCombobox",

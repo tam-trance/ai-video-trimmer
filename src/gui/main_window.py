@@ -96,18 +96,18 @@ class ModernVideoProcessorApp:
         self.left_column.columnconfigure(0, weight=1)
         self.left_column.rowconfigure(2, weight=1)  # Make log section expandable
 
-        # Right column for output files and status
+        # Right column for log only (removed output files section)
         self.right_column = ttk.Frame(self.main_frame)
         self.right_column.grid(row=1, column=1, sticky="nsew", padx=(10, 0))
         self.right_column.columnconfigure(0, weight=1)
-        self.right_column.rowconfigure(1, weight=1)  # Make log section expandable
+        self.right_column.rowconfigure(0, weight=1)  # Make log section take full height
 
         # Create sections in the left column
         self.create_upper_section()
         self.create_processing_section()
 
-        # Create the output section in the right column
-        self.create_output_section()
+        # Create the log section directly in the right column
+        self.create_log_section()
 
     def create_upper_section(self):
         """Create the upper section containing file selection and parameters side by side"""
@@ -464,47 +464,10 @@ class ModernVideoProcessorApp:
         )
         self.edited_folder_btn.grid(row=0, column=1, pady=5, padx=5)
 
-    def create_output_section(self):
-        """Create the output files section in the right column"""
-        # Output Files section
-        output_frame = ttk.LabelFrame(
-            self.right_column, text="Output Files", padding="10"
-        )
-        output_frame.grid(row=0, column=0, sticky="ew", pady=(0, 10))
-        output_frame.columnconfigure(0, weight=1)
-
-        # Output directory info
-        output_info = ttk.Label(
-            output_frame, text=f"All output files will be saved to:"
-        )
-        output_info.grid(row=0, column=0, sticky="w", pady=(0, 5))
-
-        # Directory path with better styling
-        path_label = ttk.Label(
-            output_frame,
-            text=self.app_dir,
-            style="Info.TLabel",
-            wraplength=250,  # Let long paths wrap
-        )
-        path_label.grid(row=1, column=0, sticky="w", pady=(0, 10))
-
-        # Open output folder button - high contrast
-        self.folder_btn = ttk.Button(
-            output_frame,
-            text="Open Output Folder",
-            command=self.open_output_folder,
-            style="Primary.TButton",
-            width=16,
-        )
-        self.folder_btn.grid(row=2, column=0, sticky="w", pady=(0, 10))
-
-        # Create the log section
-        self.create_log_section()
-
     def create_log_section(self):
         """Create the log section in the right column"""
         log_frame = ttk.LabelFrame(self.right_column, text="Log", padding="10")
-        log_frame.grid(row=1, column=0, sticky="nsew", pady=(0, 0))
+        log_frame.grid(row=0, column=0, sticky="nsew", pady=(0, 0))
         log_frame.rowconfigure(0, weight=1)
         log_frame.columnconfigure(0, weight=1)
 
@@ -561,7 +524,70 @@ class ModernVideoProcessorApp:
                 text=f"Selected: {os.path.basename(file_path)}", style="Success.TLabel"
             )
             self.log_message(f"Selected video file: {file_path}")
+
+            # Check for existing JSON files
+            self.check_existing_files()
+
+            # Update button states
             self.update_button_states()
+
+    def check_existing_files(self):
+        """Check if JSON files already exist for the selected video and update UI accordingly"""
+        if not self.controller.video_path:
+            return
+
+        # Check dependencies using the controller
+        deps = self.controller.check_dependencies()
+
+        # Update UI based on what files exist
+        if deps["segments_detected"]:
+            self.step1_status.config(
+                text=f"Found: {os.path.basename(self.controller.segments_file)}",
+                style="Success.TLabel",
+            )
+            self.step2_btn.config(state=tk.NORMAL)
+            self.log_message(
+                f"Found existing segments file: {self.controller.segments_file}"
+            )
+
+        if deps["transcription_complete"]:
+            self.step2_status.config(
+                text=f"Found: {os.path.basename(self.controller.transcription_file)}",
+                style="Success.TLabel",
+            )
+            self.step3_btn.config(state=tk.NORMAL)
+            self.log_message(
+                f"Found existing transcription file: {self.controller.transcription_file}"
+            )
+
+        if deps["suggestion_complete"]:
+            self.step3_status.config(
+                text=f"Found: {os.path.basename(self.controller.suggestion_file)}",
+                style="Success.TLabel",
+            )
+            self.srt_btn.config(state=tk.NORMAL)
+            self.video_btn.config(state=tk.NORMAL)
+            self.srt_status.config(text="Ready", style="Status.TLabel")
+            self.video_status.config(text="Ready", style="Status.TLabel")
+            self.log_message(
+                f"Found existing suggestion file: {self.controller.suggestion_file}"
+            )
+
+        if deps["srt_generated"]:
+            self.srt_status.config(
+                text=f"Found: {os.path.basename(self.controller.srt_file)}",
+                style="Success.TLabel",
+            )
+            self.log_message(f"Found existing SRT file: {self.controller.srt_file}")
+
+        if deps["video_generated"]:
+            self.video_status.config(
+                text=f"Found: {os.path.basename(self.controller.output_video)}",
+                style="Success.TLabel",
+            )
+            self.log_message(
+                f"Found existing edited video: {self.controller.output_video}"
+            )
 
     def apply_parameters(self):
         """Apply the segment detection parameters"""
@@ -596,11 +622,6 @@ class ModernVideoProcessorApp:
             self.step3_btn.config(state=tk.DISABLED)
             self.srt_btn.config(state=tk.DISABLED)
             self.video_btn.config(state=tk.DISABLED)
-
-    def open_output_folder(self):
-        """Open the output folder in file explorer"""
-        self.controller.open_output_folder()
-        self.log_message(f"Opened output folder: {self.app_dir}")
 
     def run_detect_segments(self):
         """Run step 1: Detect speech segments"""
