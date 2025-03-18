@@ -46,5 +46,7 @@ keep some folders like /audio
 /bin/*
 /bin
 
+/venv_aivideotrim_py39/*
+
 
 VideoProcessor.spec
