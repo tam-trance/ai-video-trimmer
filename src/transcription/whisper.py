@@ -1,6 +1,7 @@
 import os
 import tempfile
 from openai import OpenAI
+import whisper
 
 # Instantiate the client
 api_key = os.getenv("OPENAI_API_KEY")
@@ -26,6 +27,17 @@ def transcribe_audio_segment(segment_audio_path):
     transcript_data = transcript.model_dump()
     return transcript_data.get("text", "")
 
+
+def transcribe_audio_segment_local_whisper(segment_audio_path):
+    device = "cpu"
+    model = whisper.load_model("medium").to(device)
+    print('segment_audio_path', segment_audio_path)
+    transcriptions = model.transcribe(segment_audio_path)    
+    transcription = transcriptions["text"]
+    return transcription
+
+
+
 def transcribe_segments(audio, segments):
     """
     For each detected segment, export its audio to a temporary file and transcribe it.
@@ -39,7 +51,7 @@ def transcribe_segments(audio, segments):
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
             segment_audio.export(tmp.name, format="wav")
             tmp_path = tmp.name
-        text = transcribe_audio_segment(tmp_path)
+        text = transcribe_audio_segment_local_whisper(tmp_path)
         os.remove(tmp_path)
         transcriptions.append({
             "start": seg["start"],
@@ -47,3 +59,4 @@ def transcribe_segments(audio, segments):
             "text": text.strip()
         })
     return transcriptions
+
