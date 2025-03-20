@@ -195,7 +195,8 @@ def main():
                 print(f"Cut made at {seconds_to_timestamp(point)}")
 
             # Step 4: Pause: Import the SRT file to Pr. Remove unwanted clips.
-            input("ACTION: Apply cuts to audio. Apply SRT file as subtitles. Remove unwanted clips. [ENTER]")
+            # input("ACTION: Apply cuts to audio. Apply SRT file as subtitles. Remove unwanted clips. [ENTER]")
+            # ^ can also batch manual step at the end for all videos
 
 
 if __name__ == "__main__":
