@@ -37,17 +37,18 @@ def process_video(
     script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
     # Create necessary directories relative to the script directory
-    os.makedirs(os.path.join(script_dir, "dump"), exist_ok=True)
+    dump_dir = "dump2"
+    os.makedirs(os.path.join(script_dir, dump_dir), exist_ok=True)
 
     # Step 1: Extract full audio from the video
-    temp_audio_file = os.path.join(script_dir, "dump", f"{base_name}_temp_audio.wav")
+    temp_audio_file = os.path.join(script_dir, dump_dir, f"{base_name}_tmp_audio.wav")
     extract_audio(video_path, temp_audio_file)
 
     # Step 2: Load audio and detect segments based on sound levels
     audio = AudioSegment.from_file(temp_audio_file)
     raw_segments = detect_segments(audio, chunk_ms=100)
     raw_segments_file = os.path.join(
-        script_dir, "dump", f"{base_name}_segments_raw.json"
+        script_dir, dump_dir, f"{base_name}_segments_raw.json"
     )
     save_json(raw_segments, raw_segments_file)
     print(f"Saved raw segments JSON to {raw_segments_file}")
@@ -55,7 +56,7 @@ def process_video(
     # Step 3: For each segment, transcribe the audio using Whisper
     raw_transcription = transcribe_segments(audio, raw_segments)
     raw_transcription_file = os.path.join(
-        script_dir, "dump", f"{base_name}_transcription.json"
+        script_dir, dump_dir, f"{base_name}_transcription.json"   
     )
     save_json(raw_transcription, raw_transcription_file)
     print(f"Saved raw transcription JSON to {raw_transcription_file}")
@@ -64,14 +65,14 @@ def process_video(
 
     # Step 4: Send raw transcription to an LLM for filtering and save suggestion JSON locally
     suggestion = get_llm_suggestion(raw_transcription)
-    suggestion_file = os.path.join(script_dir, "dump", f"{base_name}_suggestion.json")
+    suggestion_file = os.path.join(script_dir, dump_dir, f"{base_name}_suggestion.json")  
     save_json(suggestion, suggestion_file)
     print(f"Saved LLM suggestion JSON to {suggestion_file}")
 
     # Step 5: Create SRT file if requested
     if generate_srt:
         srt_content = create_srt_from_json(suggestion)
-        srt_file = os.path.join(script_dir, "dump", f"{base_name}.srt")
+        srt_file = os.path.join(script_dir, dump_dir, f"{base_name}.srt")
         with open(srt_file, "w", encoding="utf-8") as f:
             f.write(srt_content)
         print(f"Saved SRT file to {srt_file}")
@@ -79,7 +80,7 @@ def process_video(
     # Step 6: Create the final video if requested
     if generate_video:
         if output_video is None:
-            output_video = os.path.join(script_dir, "dump", f"{base_name}_edited.mp4")
+            output_video = os.path.join(script_dir, dump_dir, f"{base_name}_edited.mp4")
         create_final_video(video_path, suggestion, output_video)
         print(f"Saved edited video to {output_video}")
 
