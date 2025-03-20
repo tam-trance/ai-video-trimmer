@@ -12,13 +12,15 @@
 *.log.*.*.*.*
 *.log.*.*.*.*.*
 
+*.DS_Store
+
 keep some folders like /audio
 
 # Unignore the specific folder and its contents
-!audio/
-!edited/
-!jsons/
-!raw/
+# !audio/
+# !edited/
+# !jsons/
+# !raw/
 
 .env
 
@@ -47,6 +49,11 @@ keep some folders like /audio
 /bin
 
 /venv_aivideotrim_py39/*
+
+/test/*
+
+/dump*
+/raw/*
 
 
 VideoProcessor.spec

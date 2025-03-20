@@ -97,3 +97,13 @@ def detect_segments(
         merged_segments.append(current)
 
     return merged_segments
+
+
+
+def filter_segments(segments, min_duration_sec=2.0):
+    """Filter segments based on the length."""
+    filtered_segments = []
+    for seg in segments:
+        if seg["end"] - seg["start"] > min_duration_sec:
+            filtered_segments.append(seg)
+    return filtered_segments
