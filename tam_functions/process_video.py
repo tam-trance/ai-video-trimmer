@@ -119,9 +119,9 @@ def generate_video_transcription(
     return transcription_for_srt
 
 
-def main():
+def create_project_from_videos(base_dir, raw_folder, dump_folder):
     """Process all video files in the 'raw' directory"""
-    video_files = sorted(glob.glob("raw/*"))
+    video_files = sorted(glob.glob(f"{raw_folder}/*"))
     for video_file in video_files:
         if os.path.isfile(video_file) and video_file.lower().endswith(
             (".mp4", ".mov", ".avi", ".mkv")
@@ -130,8 +130,9 @@ def main():
             # Step 1: Load or generate transcription for the video
             video_basename = os.path.splitext(os.path.basename(video_file))[0]
             # Get directory for output - use the directory where the script is located
-            script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            dump_dir = os.path.join(script_dir, "dump_main2")
+            # script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            script_dir = base_dir
+            dump_dir = os.path.join(script_dir, dump_folder)
             # check if file exists in dump_dir
             if os.path.exists(os.path.join(dump_dir, f"{video_basename}_transcription.json")):
                 print(f"Loading existing transcription for {video_basename}")
@@ -204,4 +205,7 @@ if __name__ == "__main__":
     # video_file = "/Users/tamtran/Documents/devy/00_repos/VideoEditing/ai-video-trimmer/raw/IMG_0644.mov"
     # generate_video_transcription(video_file, generate_suggestion=False)
 
-    main()
+    base_dir = "/Users/tamtran/Documents/devy/00_repos/VideoEditing/ai-video-trimmer"
+    raw_folder = "raw"
+    dump_folder = "dump_main3"
+    create_project_from_videos(base_dir, raw_folder, dump_folder)
