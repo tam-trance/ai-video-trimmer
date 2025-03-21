@@ -120,85 +120,107 @@ def generate_video_transcription(
     return transcription_for_srt
 
 
-def create_project_from_videos(base_dir, raw_folder, dump_folder):
+def create_project_from_videos(base_dir, raw_folder, dump_folder, project_file=None):
     """Process all video files in the 'raw' directory"""
+
+    # check if project exists
+    # project = pymiere.objects.app.project
+    # if project: # for project that is already open
+    #     print('Project already open')
+    #     pass
+    # else:
+    #     assert project_file is not None, "Project file is required"
+    #     project_file_path = os.path.join(base_dir, project_file)
+    #     print('project_file_path', project_file_path)
+    #     if os.path.exists(project_file_path):
+    #         print('Opening existing project')
+    #         project = pymiere.objects.app.openDocument(os.path.join(base_dir, project_file))
+    #     else:
+    #         print(f"Project file {project_file} does not exist. Creating new project.")
+    #         pymiere.objects.qe.newProject(project_file_path)
+    #         pymiere.objects.app.openDocument(project_file_path)
+    #         project = pymiere.objects.app.project
+
+    # Step 0: Same project for all videos. Project should be created and open already.
+    project = pymiere.objects.app.project
+    qe_project = pymiere.objects.qe.project
+
     video_files = sorted(glob.glob(f"{raw_folder}/*"))
     for video_file in video_files:
-        if os.path.isfile(video_file) and video_file.lower().endswith(
+            
+        assert os.path.isfile(video_file) and video_file.lower().endswith(
             (".mp4", ".mov", ".avi", ".mkv")
-        ):
-            
-            # Step 1: Load or generate transcription for the video
-            video_basename = os.path.splitext(os.path.basename(video_file))[0]
-            # Get directory for output - use the directory where the script is located
-            # script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            script_dir = base_dir
-            dump_dir = os.path.join(script_dir, dump_folder)
-            # check if file exists in dump_dir
-            if os.path.exists(os.path.join(dump_dir, f"{video_basename}_transcription.json")):
-                print(f"Loading existing transcription for {video_basename}")
-                transcription_for_srt = json.load(open(os.path.join(dump_dir, f"{video_basename}_transcription.json")))
-            else:
-                transcription_for_srt = generate_video_transcription(video_file) # List[Dict]
-            srt_filepath = os.path.join(dump_dir, f"{video_basename}.srt")
-            
+        )
+        
+        # Step 1: Load or generate transcription for the video
+        video_basename = os.path.splitext(os.path.basename(video_file))[0]
+        # Get directory for output - use the directory where the script is located
+        # script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        script_dir = base_dir
+        dump_dir = os.path.join(script_dir, dump_folder)
+        # check if file exists in dump_dir
+        if os.path.exists(os.path.join(dump_dir, f"{video_basename}_transcription.json")):
+            print(f"Loading existing transcription for {video_basename}")
+            transcription_for_srt = json.load(open(os.path.join(dump_dir, f"{video_basename}_transcription.json")))
+        else:
+            transcription_for_srt = generate_video_transcription(video_file) # List[Dict]
+        srt_filepath = os.path.join(dump_dir, f"{video_basename}.srt")
+        
 
 
-            # Step 2: Create new Pr sequence and import video
-            # create sequence # (don't use pymiere.objects.app.project.createNewSequence() as it pop a window requiring user intervention)
-            video_basename = os.path.splitext(os.path.basename(video_file))[0]
-            sequence_name = f"seq {video_basename}"  
-            pymiere.objects.qe.project.newSequence(sequence_name, sequence_preset_path)  # (TT: creates new empty sequence)
-            # # find newly created sequence by name  
-            # sequence = [s for s in pymiere.objects.app.project.sequences if s.name == sequence_name][0]  
-            # # open sequence in UI (TT: creates new sequence with video file 3 times)
-            # pymiere.objects.app.project.openSequence(sequenceID=sequence.sequenceID)  
-            # # this is now our active sequence  
-            # print(pymiere.objects.app.project.activeSequence)
+        # Step 2: Create new Pr sequence and import video
+        # create sequence # (don't use pymiere.objects.app.project.createNewSequence() as it pop a window requiring user intervention)
+        video_basename = os.path.splitext(os.path.basename(video_file))[0]
+        sequence_name = f"seq {video_basename}"  
+        pymiere.objects.qe.project.newSequence(sequence_name, sequence_preset_path)  # (TT: creates new empty sequence)
+        # # find newly created sequence by name  
+        # sequence = [s for s in pymiere.objects.app.project.sequences if s.name == sequence_name][0]  
+        # # open sequence in UI (TT: creates new sequence with video file 3 times)
+        # pymiere.objects.app.project.openSequence(sequenceID=sequence.sequenceID)  
+        # # this is now our active sequence  
+        # print(pymiere.objects.app.project.activeSequence)
 
-            # import media into Premiere 
-            project = pymiere.objects.app.project
-            sequence = project.activeSequence
-            media_path = os.path.abspath(video_file)  # Use absolute path
-            success = project.importFiles(  
-                [media_path, srt_filepath],
-                suppressUI=True,  
-                targetBin=project.getInsertionBin(),  
-                importAsNumberedStills=False  
-            )  
+        # import media into Premiere 
+        sequence = project.activeSequence
+        media_path = os.path.abspath(video_file)  # Use absolute path
+        success = project.importFiles(  
+            [media_path, srt_filepath],
+            suppressUI=True,  
+            targetBin=project.getInsertionBin(),  
+            importAsNumberedStills=False  
+        )  
 
-            if not success:
-                raise Exception("Failed to import media file")
+        if not success:
+            raise Exception("Failed to import media file")
 
-            # find media we imported  
-            items = project.rootItem.findItemsMatchingMediaPath(media_path, ignoreSubclips=False)  
-            if not items or len(items) == 0:
-                raise Exception("Could not find imported media in project")
+        # find media we imported  
+        items = project.rootItem.findItemsMatchingMediaPath(media_path, ignoreSubclips=False)  
+        if not items or len(items) == 0:
+            raise Exception("Could not find imported media in project")
 
-            # add clip to active sequence  
-            project.activeSequence.videoTracks[0].insertClip(items[0], time_from_seconds(0))
+        # add clip to active sequence  
+        project.activeSequence.videoTracks[0].insertClip(items[0], time_from_seconds(0))
 
-            # Access the QE project
-            qe_project = pymiere.objects.qe.project
-            qe_sequence = qe_project.getActiveSequence()
-            qe_video_track = qe_sequence.getVideoTrackAt(0)
+        # Access the QE project
+        qe_sequence = qe_project.getActiveSequence()
+        qe_video_track = qe_sequence.getVideoTrackAt(0)
 
-            # Step 3: Cut the video based on the transcription segments
-            cut_points = []
-            for segment in transcription_for_srt:
-                cut_points.extend([segment["start"], segment["end"]])
-            cut_points = sorted(set(cut_points))
+        # Step 3: Cut the video based on the transcription segments
+        cut_points = []
+        for segment in transcription_for_srt:
+            cut_points.extend([segment["start"], segment["end"]])
+        cut_points = sorted(set(cut_points))
 
-            # sequence = project.activeSequence
-            for point in cut_points:
-                time_obj = time_from_seconds(point)
-                timecode = timecode_from_time(time_obj, sequence)
-                qe_video_track.razor(timecode)
-                print(f"Cut made at {seconds_to_timestamp(point)}")
+        # sequence = project.activeSequence
+        for point in cut_points:
+            time_obj = time_from_seconds(point)
+            timecode = timecode_from_time(time_obj, sequence)
+            qe_video_track.razor(timecode)
+            print(f"Cut made at {seconds_to_timestamp(point)}")
 
-            # Step 4: Pause: Import the SRT file to Pr. Remove unwanted clips.
-            # input("ACTION: Apply cuts to audio. Apply SRT file as subtitles. Remove unwanted clips. [ENTER]")
-            # ^ can also batch manual step at the end for all videos
+    # Step 4: Pause: Import the SRT file to Pr. Remove unwanted clips.
+    # input("ACTION: Apply cuts to audio. Apply SRT file as subtitles. Remove unwanted clips. [ENTER]")
+    # ^ can also batch manual step at the end for all videos
 
 
 if __name__ == "__main__":
@@ -210,6 +232,7 @@ if __name__ == "__main__":
         base_dir = "/Users/tamtran/Documents/devy/00_repos/VideoEditing/ai-video-trimmer"
         raw_folder = "raw"
         dump_folder = "dump_main3"
+        # project_file = "projects/test_aivideotrimmer4.prproj"
         create_project_from_videos(base_dir, raw_folder, dump_folder)
 
     # args for command line
