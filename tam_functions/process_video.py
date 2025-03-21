@@ -2,6 +2,7 @@ import glob
 import os
 import sys
 import json
+import argparse
 import pymiere
 from pydub import AudioSegment
 
@@ -205,7 +206,18 @@ if __name__ == "__main__":
     # video_file = "/Users/tamtran/Documents/devy/00_repos/VideoEditing/ai-video-trimmer/raw/IMG_0644.mov"
     # generate_video_transcription(video_file, generate_suggestion=False)
 
-    base_dir = "/Users/tamtran/Documents/devy/00_repos/VideoEditing/ai-video-trimmer"
-    raw_folder = "raw"
-    dump_folder = "dump_main3"
-    create_project_from_videos(base_dir, raw_folder, dump_folder)
+    if True:
+        base_dir = "/Users/tamtran/Documents/devy/00_repos/VideoEditing/ai-video-trimmer"
+        raw_folder = "raw"
+        dump_folder = "dump_main3"
+        create_project_from_videos(base_dir, raw_folder, dump_folder)
+
+    # args for command line
+    if False:
+        base_dir, raw_folder, dump_folder = None, None, None
+        parser = argparse.ArgumentParser(description='Process video files.')
+        parser.add_argument('--base_dir', type=str, default=base_dir, help='Base directory')
+        parser.add_argument('--raw_folder', type=str, default=raw_folder, help='Raw folder')
+        parser.add_argument('--dump_folder', type=str, default=dump_folder, help='Dump folder')
+        args = parser.parse_args()
+        create_project_from_videos(args.base_dir, args.raw_folder, args.dump_folder) 
