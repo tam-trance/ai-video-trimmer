@@ -348,6 +348,8 @@ def create_xml_from_videos(base_dir, raw_folder, dump_folder, gap_between_videos
 
 
     def create_media_element(parent):
+        '''Hierarchy: xmeml > sequence > media > video > track > file > media > video/audio'''
+
         media = ET.SubElement(parent, "media")
         
         # --- Video ---
@@ -457,7 +459,7 @@ def create_xml_from_videos(base_dir, raw_folder, dump_folder, gap_between_videos
 
         media = ET.SubElement(sequence, "media")
 
-        # Create video track
+        # --- Create sequence > media > video ---
         video = ET.SubElement(media, "video")
         video_format = ET.SubElement(video, "format")
         video_sample = ET.SubElement(video_format, "samplecharacteristics")
@@ -470,10 +472,8 @@ def create_xml_from_videos(base_dir, raw_folder, dump_folder, gap_between_videos
         ET.SubElement(video_sample, "fielddominance").text = "lower"
         ET.SubElement(video_sample, "colordepth").text = str(24)
 
+        # --- Create video > first track (where all the clips are) ---
         track = ET.SubElement(video, "track")
-        ET.SubElement(track, "enabled").text = "TRUE"
-        ET.SubElement(track, "locked").text = "FALSE"
-
         file_written = set()
 
         for (clip_video_key, clip_video_value), (clip_audio_key, clip_audio_value) in zip(clips_video.items(), clips_audio.items()):
@@ -528,13 +528,91 @@ def create_xml_from_videos(base_dir, raw_folder, dump_folder, gap_between_videos
             # Logging and color info placeholders
             ET.SubElement(clipitem, "logginginfo")
             ET.SubElement(clipitem, "colorinfo")
+        
+        ET.SubElement(track, "enabled").text = "TRUE"
+        ET.SubElement(track, "locked").text = "FALSE"
 
-        # Timecode
+
+        # --- Create sequence > media > audio ---
+        audio = ET.SubElement(media, "audio")
+        ET.SubElement(audio, "numOutputChannels").text = str(2)
+        audio_format = ET.SubElement(audio, "format")
+        audio_sample = ET.SubElement(audio_format, "samplecharacteristics")
+        ET.SubElement(audio_format, "depth").text = str(16)
+        ET.SubElement(audio_format, "samplerate").text = str(44100)
+        audio_outputs = ET.SubElement(audio, "outputs")
+        outputs_group = ET.SubElement(audio_outputs, "group")
+        ET.SubElement(outputs_group, "index").text = str(1)
+        ET.SubElement(outputs_group, "numchannels").text = str(1)
+        ET.SubElement(outputs_group, "downmix").text = str(0)
+        group_channel = ET.SubElement(outputs_group, "channel")
+        ET.SubElement(group_channel, "index").text = str(1)
+        outputs_group2 = ET.SubElement(audio_outputs, "group")
+        ET.SubElement(outputs_group, "index").text = str(2)
+        ET.SubElement(outputs_group, "numchannels").text = str(1)
+        ET.SubElement(outputs_group, "downmix").text = str(0)
+        group_channel = ET.SubElement(outputs_group, "channel")
+        ET.SubElement(group_channel, "index").text = str(2)
+
+        # --- Create audio > first track (where all the clips are) ---
+        track = ET.SubElement(audio, "track")
+
+        for (clip_video_key, clip_video_value), (clip_audio_key, clip_audio_value) in zip(clips_video.items(), clips_audio.items()):
+
+            clip = clip_audio_value
+
+            clipitem = ET.SubElement(track, "clipitem", id=f"clipitem-{clip['clip_audio_id']}") # computed values
+            ET.SubElement(clipitem, "masterclipid").text = str(clip['masterclip_id']) # computed values
+            ET.SubElement(clipitem, "name").text = clip['video_name']
+            ET.SubElement(clipitem, "enabled").text = "TRUE"
+            ET.SubElement(clipitem, "duration").text = str(clip['duration']) # computed values
+            create_rate_element(clipitem)
+
+            ET.SubElement(clipitem, "start").text = str(clip['timeline_start'])
+            ET.SubElement(clipitem, "end").text = str(clip['timeline_end'])
+            ET.SubElement(clipitem, "in").text = str(clip['source_in'])
+            ET.SubElement(clipitem, "out").text = str(clip['source_out'])
+            ET.SubElement(clipitem, "pproTicksIn").text = str(frame_to_ticks(clip['source_in']))
+            ET.SubElement(clipitem, "pproTicksOut").text = str(frame_to_ticks(clip['source_out']))
+
+            ET.SubElement(clipitem, "file", id=clip['file_id']) # no need to repeat <file>
+            sourcetrack = ET.SubElement(clipitem, "sourcetrack")
+            ET.SubElement(sourcetrack, "mediatype").text = "audio"
+            ET.SubElement(sourcetrack, "trackindex").text = str(1)
+
+            # Link element placeholder
+            link = ET.SubElement(clipitem, "link")
+            ET.SubElement(link, "linkclipref").text = f"clipitem-{clip['clip_video_id']}" # computed value?
+            ET.SubElement(link, "mediatype").text = "video" # modularize for "audio" too
+            ET.SubElement(link, "trackindex").text = "1"
+            ET.SubElement(link, "clipindex").text = str(clip['masterclip_id']) # computed value
+
+            link = ET.SubElement(clipitem, "link")
+            ET.SubElement(link, "linkclipref").text = f"clipitem-{clip['clip_audio_id']}" # computed value?
+            ET.SubElement(link, "mediatype").text = "audio" # modularize for "audio" too
+            ET.SubElement(link, "trackindex").text = "1"
+            ET.SubElement(link, "clipindex").text = str(clip['masterclip_id']) # computed value
+            ET.SubElement(link, "groupindex").text = "1"
+
+            # Logging and color info placeholders
+            ET.SubElement(clipitem, "logginginfo")
+            ET.SubElement(clipitem, "colorinfo")
+
+            ET.SubElement(track, "enabled").text = "TRUE"
+            ET.SubElement(track, "locked").text = "FALSE"
+            ET.SubElement(track, "outputchannelindex").text = str(1)
+
+
+        # ---- Tail items of <sequence> -----
         timecode = ET.SubElement(sequence, "timecode")
         create_rate_element(timecode)
         ET.SubElement(timecode, "string").text = "00:00:00:00"
         ET.SubElement(timecode, "frame").text = "0"
         ET.SubElement(timecode, "displayformat").text = "NDF"
+        labels = ET.SubElement(sequence, "labels")
+        ET.SubElement(labels, "label2").text = "Forest" # why?
+        ET.SubElement(sequence, "logginginfo")
+
 
         return xmeml
 
