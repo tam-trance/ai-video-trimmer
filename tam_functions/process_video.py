@@ -274,7 +274,7 @@ def create_xml_from_videos(base_dir, raw_folder, dump_folder, gap_between_videos
     # === CONFIG ===
     FRAME_RATE = 30
     TICKS_PER_FRAME = 8467200000
-    GAP_BETWEEN_VIDEOS = 15  # Frames
+    GAP_BETWEEN_VIDEOS = 15*30  # Frames
 
     # === EXAMPLE INPUT ===
     preprocessed_videos = {
@@ -282,8 +282,20 @@ def create_xml_from_videos(base_dir, raw_folder, dump_folder, gap_between_videos
             'video_name': 'IMG_0646.MOV',
             'video_path': '/Users/tamtran/Documents/devy/00_repos/VideoEditing/ai-video-trimmer/raw/IMG_0646.MOV',
             'video_transcriptions': [
-                {'start': 0.0, 'end': 36.00},
-                {'start': 36.10, 'end': 178.12}
+                {'start': 0.0, 'end': 10.00},
+                # {'start': 10.0, 'end': 20.00},
+                # {'start': 20.0, 'end': 30.00},
+                # {'start': 30.0, 'end': 40.00},
+                # {'start': 40.0, 'end': 50.00},
+                {'start': 100.0, 'end': 178.12}
+            ]
+        },
+        'IMG_0643.MOV': {
+            'video_name': 'IMG_0643.MOV',
+            'video_path': '/Users/tamtran/Documents/devy/00_repos/VideoEditing/ai-video-trimmer/raw/IMG_0643.MOV',
+            'video_transcriptions': [
+                {'start': 0.0, 'end': 2.00},
+                {'start': 2.5, 'end': 4.5}
             ]
         }
     }
@@ -504,13 +516,14 @@ def create_xml_from_videos(base_dir, raw_folder, dump_folder, gap_between_videos
             ET.SubElement(link, "linkclipref").text = f"clipitem-{clip['clip_video_id']}" # computed value?
             ET.SubElement(link, "mediatype").text = "video" # modularize for "audio" too
             ET.SubElement(link, "trackindex").text = "1"
-            ET.SubElement(link, "clipindex").text = "1"
+            ET.SubElement(link, "clipindex").text = str(clip['masterclip_id']) # computed value
 
             link = ET.SubElement(clipitem, "link")
             ET.SubElement(link, "linkclipref").text = f"clipitem-{clip['clip_audio_id']}" # computed value?
             ET.SubElement(link, "mediatype").text = "audio" # modularize for "audio" too
             ET.SubElement(link, "trackindex").text = "1"
-            ET.SubElement(link, "clipindex").text = "1"
+            ET.SubElement(link, "clipindex").text = str(clip['masterclip_id']) # computed value
+            ET.SubElement(link, "groupindex").text = "1"
 
             # Logging and color info placeholders
             ET.SubElement(clipitem, "logginginfo")
