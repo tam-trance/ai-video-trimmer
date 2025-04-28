@@ -328,7 +328,6 @@ def generate_full_xml(clips_video, clips_audio):
     ET.SubElement(labels, "label2").text = "Forest" # why?
     ET.SubElement(sequence, "logginginfo")
 
-
     return xmeml
 
 

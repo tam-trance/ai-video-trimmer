@@ -1,3 +1,6 @@
+import os, glob, json
+
+
 def format_timestamp(seconds):
     """Convert seconds to SRT timestamp format (HH:MM:SS,mmm)"""
     hours = int(seconds // 3600)
@@ -34,3 +37,44 @@ def create_srt_from_json(segments_data):
         )
 
     return "\n".join(srt_lines)
+
+
+
+def merge_and_compress_transcriptions(dir_transcriptions, gap_between_videos):
+    ''' Take all the *transcription.json, close the gap between video clips, leave a gap between videos, and output a single .srt
+    Args:
+    
+    '''
+
+    continuous_clips = []
+    current_time = 0.0
+
+    transcription_files = sorted(glob.glob(os.path.join(dir_transcriptions, '*_transcription.json')))
+    for transcription_path in transcription_files:
+
+        with open(transcription_path, "r", encoding="utf-8") as f:
+            transcription_file = json.load(f)
+
+        for cut in transcription_file:
+            duration = cut['end'] - cut['start']
+
+            new_clip = {
+                'start': round(current_time, 2),
+                'end': round(current_time + duration, 2),
+                'text': cut['text']
+            }
+            continuous_clips.append(new_clip)
+
+            current_time += duration  # Move forward
+
+        # After finishing one video (one JSON file), insert gap
+        current_time += gap_between_videos
+
+    # Save dict to srt file. 
+    srt_content = create_srt_from_json(continuous_clips)
+    srt_file = os.path.join(dir_transcriptions, f"transcriptions_all_compressed.srt")
+    with open(srt_file, "w", encoding="utf-8") as f:
+        f.write(srt_content)
+    print(f"Saved SRT file to {srt_file}")
+    
+    return continuous_clips

@@ -11,7 +11,7 @@ from src.audio.processing import detect_segments, extract_audio, filter_segments
 from src.llm.suggestion import get_llm_suggestion
 from src.transcription.whisper import transcribe_segments
 from src.utils.json_utils import save_json
-from src.utils.srt_utils import create_srt_from_json
+from src.utils.srt_utils import create_srt_from_json, merge_and_compress_transcriptions
 from src.utils.xml_utils import prepare_clips, generate_full_xml, save_pretty_xml
 from src.video.editor import create_final_video
 from tam_functions.config import *
@@ -144,8 +144,6 @@ def create_project_from_videos(base_dir, raw_folder, dump_folder, project_file=N
         else:
             transcription_for_srt = generate_video_transcription(video_file, dump_dir) # List[Dict]
         srt_filepath = os.path.join(dump_dir, f"{video_basename}.srt")
-        
-
 
         # Step 2: Create new Pr sequence and import video
         # create sequence # (don't use pymiere.objects.app.project.createNewSequence() as it pop a window requiring user intervention)
@@ -249,26 +247,30 @@ def create_xml_from_videos(base_dir, raw_folder, dump_folder, gap_between_videos
     
 
 
+
 if __name__ == "__main__":
 
     # video_file = "/Users/tamtran/Documents/devy/00_repos/VideoEditing/ai-video-trimmer/raw/IMG_0644_short2min.mov"
     # video_file = "/Users/tamtran/Documents/devy/00_repos/VideoEditing/ai-video-trimmer/raw/IMG_0644.mov"
     # generate_video_transcription(video_file, generate_suggestion=False)
 
-    if True:
+    if False:
         base_dir = "/Users/tamtran/Documents/devy/00_repos/VideoEditing/ai-video-trimmer"
         raw_folder = "raw"
         dump_folder = "dump_xml"
         # project_file = "projects/test_aivideotrimmer4.prproj"
         # create_project_from_videos(base_dir, raw_folder, dump_folder)
         create_xml_from_videos(base_dir, raw_folder, dump_folder, GAP_BETWEEN_VIDEOS)
+        merge_and_compress_transcriptions(os.path.join(base_dir, dump_folder), GAP_BETWEEN_VIDEOS)
 
     # args for command line
-    if False:
+    if True:
         base_dir, raw_folder, dump_folder = None, None, None
         parser = argparse.ArgumentParser(description='Process video files.')
         parser.add_argument('--base_dir', type=str, default=base_dir, help='Base directory')
         parser.add_argument('--raw_folder', type=str, default=raw_folder, help='Raw folder')
         parser.add_argument('--dump_folder', type=str, default=dump_folder, help='Dump folder')
         args = parser.parse_args()
-        create_project_from_videos(args.base_dir, args.raw_folder, args.dump_folder) 
+        # create_project_from_videos(args.base_dir, args.raw_folder, args.dump_folder)
+        create_xml_from_videos(args.base_dir, args.raw_folder, args.dump_folder, GAP_BETWEEN_VIDEOS)
+        merge_and_compress_transcriptions(os.path.join(args.base_dir, args.dump_folder), GAP_BETWEEN_VIDEOS)
